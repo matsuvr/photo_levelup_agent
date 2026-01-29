@@ -18,7 +18,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                           Frontend (Next.js)                            │
+│                           Frontend (Next.js on firaebase)                            │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────────┐  │
 │  │ 画像アップロード │  │  比較ビューア  │  │      チャットUI              │  │
 │  └──────────────┘  └──────────────┘  └──────────────────────────────┘  │
@@ -26,7 +26,7 @@
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                     Cloud Run (ADK Go Backend)                          │
+│                     Cloud Run (ADK Go Backend on cloud run)                          │
 │  ┌──────────────────────────────────────────────────────────────────┐  │
 │  │                    ADK Runner + Agent                            │  │
 │  │  ┌────────────────────────────────────────────────────────────┐ │  │
@@ -46,7 +46,7 @@
           │                │                │                │
           ▼                ▼                ▼                ▼
 ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-│  Gemini API  │  │ Vertex AI    │  │ Cloud        │  │ Vertex AI    │
+│  Vertex AI   │  │ Vertex AI    │  │ Cloud        │  │ Vertex AI    │
 │  (Vision)    │  │ Nano Banana  │  │ Storage      │  │ Agent Engine │
 │              │  │ Pro          │  │              │  │ (Session/    │
 │              │  │              │  │              │  │  Memory)     │
@@ -82,7 +82,7 @@ photo-coach/
 │   │   ├── transform.go         # 写真変換ツール (Nano Banana Pro)
 │   │   └── compare.go           # 比較・アドバイスツール
 │   ├── services/
-│   │   ├── gemini.go            # Gemini API クライアント
+│   │   ├── gemini.go            # Gemini Client (Vertex AI)
 │   │   ├── nanobanana.go        # Nano Banana Pro クライアント
 │   │   └── storage.go           # Cloud Storage クライアント
 │   └── api/
@@ -281,9 +281,11 @@ const systemInstruction = `あなたは写真指導の専門家AIアシスタン
 `
 
 func NewAgent(ctx context.Context) (*llmagent.LLMAgent, error) {
-	// Gemini モデルの初期化
-	model, err := gemini.NewModel(ctx, "gemini-2.5-flash", &genai.ClientConfig{
-		APIKey: os.Getenv("GOOGLE_API_KEY"),
+	// Gemini モデルの初期化 (Vertex AI)
+	model, err := gemini.NewModel(ctx, "gemini-3-pro-preview", &genai.ClientConfig{
+		Project:  os.Getenv("PROJECT_ID"),
+		Location: os.Getenv("LOCATION"),
+		Backend:  genai.BackendVertexAI,
 	})
 	if err != nil {
 		return nil, err
@@ -358,7 +360,7 @@ type CategoryAnalysis struct {
 func analyzePhoto(tc tool.Context, args AnalyzePhotoArgs) (*AnalysisResult, error) {
 	ctx := context.Background()
 
-	// Gemini Vision API で分析
+	// Vertex AI Vision で分析
 	geminiClient := services.NewGeminiClient()
 	result, err := geminiClient.AnalyzeImage(ctx, args.ImageURL)
 	if err != nil {
@@ -520,7 +522,7 @@ func compareAndAdvise(tc tool.Context, args CompareAndAdviseArgs) (*AdviceResult
 		return nil, fmt.Errorf("比較する画像がありません。先にanalyze_photoとtransform_photoを実行してください")
 	}
 
-	// Gemini で比較分析
+	// Vertex AI で比較分析
 	geminiClient := services.NewGeminiClient()
 	result, err := geminiClient.CompareAndGenerateAdvice(ctx, originalURL, transformedURL)
 	if err != nil {
@@ -568,7 +570,9 @@ func NewNanoBananaClient() *NanoBananaClient {
 	ctx := context.Background()
 
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
-		APIKey: os.Getenv("GOOGLE_API_KEY"),
+		Project:  os.Getenv("PROJECT_ID"),
+		Location: os.Getenv("LOCATION"),
+		Backend:  genai.BackendVertexAI,
 	})
 	if err != nil {
 		panic(err)
@@ -853,7 +857,7 @@ func searchUserHistory(tc tool.Context, query string) ([]string, error) {
     if err != nil {
         return nil, err
     }
-    
+
     var memories []string
     for _, r := range results {
         memories = append(memories, r.Content)
@@ -931,13 +935,8 @@ resource "google_cloud_run_v2_service" "photo_coach" {
         value = google_vertex_ai_agent_engine.photo_coach.id
       }
       env {
-        name = "GOOGLE_API_KEY"
-        value_source {
-          secret_key_ref {
-            secret  = google_secret_manager_secret.api_key.secret_id
-            version = "latest"
-          }
-        }
+        name  = "PROJECT_ID"
+        value = var.project_id
       }
     }
 

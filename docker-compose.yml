@@ -1,0 +1,10 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: ghcr.io/matsuvr/photo_levelup_agent-backend:latest
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
