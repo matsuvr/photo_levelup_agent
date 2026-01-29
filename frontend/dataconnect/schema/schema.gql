@@ -1,0 +1,45 @@
+type User @table {
+  displayName: String!
+  email: String!
+  createdAt: Timestamp!
+  userType: String!
+  photoUrl: String
+  bio: String
+  specializations: [String]
+}
+
+type Photo @table {
+  imageUrl: String!
+  title: String!
+  uploadDate: Timestamp!
+  description: String
+  challenge: Challenge
+  user: User
+}
+
+type Feedback @table {
+  feedbackText: String!
+  createdAt: Timestamp!
+  rating: Int
+  suggestedExercises: [String]
+  photo: Photo
+  coach: User
+}
+
+type Challenge @table {
+  title: String!
+  description: String!
+  startDate: Timestamp!
+  endDate: Timestamp!
+  rules: String
+  examplePhotos: [String]
+  creator: User
+}
+
+type SubscriptionType @table {
+  name: String!
+  price: Float!
+  duration: String!
+  features: [String]!
+  description: String
+}

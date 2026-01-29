@@ -1,3 +1,6 @@
+gcp-key.json
+
+
 # If you prefer the allow list template instead of the deny list, see community template:
 # https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
 #
@@ -18,7 +21,7 @@ coverage.*
 profile.cov
 
 # Dependency directories (remove the comment below to include it)
-# vendor/
+vendor/
 
 # Go workspace file
 go.work
@@ -26,7 +29,44 @@ go.work.sum
 
 # env file
 .env
+gcp-key.json
+
+# local git hooks
+.git/hooks/pre-push
 
 # Editor/IDE
-# .idea/
-# .vscode/
+.idea/
+.vscode/
+
+.agent/
+.agents/
+.claude/
+# .gemini/
+.codex/
+.cursor/
+.cursorrules/
+.cursorrules.md
+.opencode/
+.goose/
+.kiro/
+.qwen/
+.trae/
+.windsurf/
+.crush/
+.junie/
+.factory/
+.kilocode/
+.kode/
+.mcpjam/
+.mux/
+.neovate/
+.openhands/
+.pi/
+.pochi/
+.qoder/
+.roo/
+.zencoder/
+.continue/
+.commandcode/
+.codebuddy/
+.cline/

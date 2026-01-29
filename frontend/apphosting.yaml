@@ -1,0 +1,16 @@
+# Settings for Backend (on Cloud Run).
+# See https://firebase.google.com/docs/app-hosting/configure#cloud-run
+runConfig:
+  minInstances: 0
+  # maxInstances: 100
+  # concurrency: 80
+  # cpu: 1
+  # memoryMiB: 512
+
+# Environment variables and secrets.
+env:
+  - variable: BACKEND_BASE_URL
+    value: https://photo-levelup-agent-backend-176014985412.asia-northeast1.run.app
+    availability:
+      - BUILD
+      - RUNTIME
