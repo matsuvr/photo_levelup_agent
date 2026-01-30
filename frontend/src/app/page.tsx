@@ -30,7 +30,7 @@ const initialMessage: ChatMessage = {
   id: "welcome",
   role: "agent",
   content:
-    "**写真をアップロードしてください。** 採点と改善提案を行い、その結果をもとに理想的な写真を生成します。\n\n下の📷ボタンから写真をアップロードできます。",
+    "**写真をアップロードしてください。** 採点と改善提案を行い、その結果をもとに理想的な写真を生成します。",
   timestamp: Timestamp.now(),
 }
 
@@ -203,7 +203,7 @@ export default function Home() {
         // We will update it after analysis.
       }
 
-      const response = await fetch("/api/photo/analyze", {
+      const response = await fetch("/api/analyze", {
         method: "POST",
         body: formData,
       })
@@ -312,7 +312,7 @@ export default function Home() {
     }
 
     try {
-      const response = await fetch("/api/photo/chat", {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

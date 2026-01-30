@@ -12,7 +12,12 @@
     "node": "22"
   },
   "dependencies": {
+    "acorn": "^8.15.0",
     "firebase": "^12.8.0",
+    "firebase-admin": "^13.6.0",
+    "firebase-frameworks": "^0.11.8",
+    "firebase-functions": "^7.0.5",
+    "markdown-it": "^14.1.0",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
@@ -20,6 +25,7 @@
     "remark-gfm": "latest"
   },
   "devDependencies": {
+    "@types/markdown-it": "^14.1.2",
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",

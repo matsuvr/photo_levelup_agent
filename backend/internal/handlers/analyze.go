@@ -67,13 +67,15 @@ func (h *AnalyzeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	processor := services.NewImageProcessor()
 	resized, contentType, err := processor.ResizeToMaxEdge(file, header.Header.Get("Content-Type"))
 	if err != nil {
+		log.Printf("ERROR: Failed to resize image: %v", err)
 		writeJSONError(w, http.StatusBadRequest, "Invalid image")
 		return
 	}
+	log.Printf("INFO: Image resized successfully, size=%d bytes, contentType=%s", len(resized), contentType)
 
 	imageURL, err := storageClient.UploadImage(ctx, resized, contentType)
 	if err != nil {
-		log.Printf("ERROR: Failed to upload image: %v", err)
+		log.Printf("ERROR: Failed to upload image to GCS: %v", err)
 		writeJSONError(w, http.StatusInternalServerError, "Failed to upload image")
 		return
 	}
