@@ -9,7 +9,7 @@
     "lint": "echo \"Lint skipped due to ESLint/Next.js version mismatch.\""
   },
   "engines": {
-    "node": ">=18.17.0"
+    "node": "22"
   },
   "dependencies": {
     "firebase": "^12.8.0",
