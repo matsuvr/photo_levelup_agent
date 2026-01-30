@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -58,6 +59,7 @@ func (h *AnalyzeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	storageClient, err := services.NewStorageClient(ctx)
 	if err != nil {
+		log.Printf("ERROR: Storage client error: %v", err)
 		writeJSONError(w, http.StatusInternalServerError, "Storage client error")
 		return
 	}
@@ -71,18 +73,21 @@ func (h *AnalyzeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	imageURL, err := storageClient.UploadImage(ctx, resized, contentType)
 	if err != nil {
+		log.Printf("ERROR: Failed to upload image: %v", err)
 		writeJSONError(w, http.StatusInternalServerError, "Failed to upload image")
 		return
 	}
 
 	analysis, err := analyzeWithAgent(ctx, h.deps, sessionID, imageURL)
 	if err != nil {
+		log.Printf("ERROR: Failed to analyze image: %v", err)
 		writeJSONError(w, http.StatusInternalServerError, "Failed to analyze image")
 		return
 	}
 
 	enhancedURL, err := generateEnhancedImage(ctx, storageClient, imageURL, analysis)
 	if err != nil {
+		log.Printf("ERROR: Failed to generate enhanced image: %v", err)
 		writeJSONError(w, http.StatusInternalServerError, "Failed to generate enhanced image")
 		return
 	}
