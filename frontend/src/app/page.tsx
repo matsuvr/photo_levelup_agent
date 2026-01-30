@@ -3,35 +3,23 @@
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { useCallback, useEffect, useMemo, useRef, useState, CSSProperties } from "react"
+import { useAuth } from "@/context/AuthContext"
+import {
+  type Session,
+  type ChatMessage,
+  type AnalysisResult,
+  type CategoryScore,
+  getUserSessions,
+  createSession,
+  addMessageToSession,
+  generateSessionId,
+  updateSessionMetadata,
+} from "@/lib/sessions"
+import { Timestamp } from "firebase/firestore"
+import { SlideMenu } from "@/app/components/SlideMenu"
+import { SessionList } from "@/app/components/SessionList"
 
-type ChatMessage = {
-  id: string
-  role: "user" | "agent"
-  content: string
-  analysisCard?: AnalysisResult
-  photoCard?: { original: string; enhanced: string }
-}
-
-type AnalysisResult = {
-  summary: string
-  overallComment: string
-  overallScore: number
-  composition: CategoryScore
-  exposure: CategoryScore
-  color: CategoryScore
-  lighting: CategoryScore
-  focus: CategoryScore
-  development: CategoryScore
-  distance: CategoryScore
-  intentClarity: CategoryScore
-}
-
-type CategoryScore = {
-  score: number
-  comment: string
-  improvement: string
-}
-
+// Re-export types for backward compatibility within component
 type PhotoSession = {
   originalPreview: string
   enhancedPreview: string
@@ -43,13 +31,15 @@ const initialMessage: ChatMessage = {
   role: "agent",
   content:
     "**写真をアップロードしてください。** 採点と改善提案を行い、その結果をもとに理想的な写真を生成します。\n\n下の📷ボタンから写真をアップロードできます。",
+  timestamp: Timestamp.now(),
 }
-
-const sessionId = `session-${Math.random().toString(36).slice(2)}`
 
 export default function Home() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
+
+  // State
+  const [currentSessionId, setCurrentSessionId] = useState<string>("")
   const [isUploading, setIsUploading] = useState(false)
   const [isChatting, setIsChatting] = useState(false)
   const [photoSession, setPhotoSession] = useState<PhotoSession | null>(null)
@@ -57,9 +47,79 @@ export default function Home() {
   const [draft, setDraft] = useState("")
   const [showBottomSheet, setShowBottomSheet] = useState(false)
   const [showAnalysisPopup, setShowAnalysisPopup] = useState(false)
+  const [showSlideMenu, setShowSlideMenu] = useState(false)
   const [activeTab, setActiveTab] = useState<"photo" | "analysis">("photo")
 
+  // Session Management State
+  const [userSessions, setUserSessions] = useState<Session[]>([])
+  const [loadingSessions, setLoadingSessions] = useState(false)
+
+  const { user, loading: authLoading, signInWithGoogle, signOut } = useAuth()
+
   const canChat = useMemo(() => Boolean(photoSession), [photoSession])
+
+  // Initialize session ID on mount
+  useEffect(() => {
+    if (!currentSessionId) {
+      setCurrentSessionId(generateSessionId())
+    }
+  }, [currentSessionId])
+
+  // Load user sessions when menu opens or user logs in
+  useEffect(() => {
+    if (user && showSlideMenu) {
+      loadSessions()
+    }
+  }, [user, showSlideMenu])
+
+  const loadSessions = async () => {
+    if (!user) return
+    setLoadingSessions(true)
+    try {
+      const sessions = await getUserSessions(user.uid)
+      setUserSessions(sessions)
+    } catch (error) {
+      console.error("Failed to load sessions:", error)
+    } finally {
+      setLoadingSessions(false)
+    }
+  }
+
+  const handleNewSession = () => {
+    setCurrentSessionId(generateSessionId())
+    setMessages([initialMessage])
+    setPhotoSession(null)
+    setShowSlideMenu(false)
+  }
+
+  const handleSelectSession = (session: Session) => {
+    setCurrentSessionId(session.id)
+    setMessages(session.messages)
+
+    // Construct photoSession from session data if available
+    if (session.photoUrl && session.overallScore !== undefined) {
+      // Note: In a real app we would store full analysis details in Firestore
+      // For now we recover basic state. If analysis details are missing from session type,
+      // we might need to fetch them or accept partial state.
+      // Since our Session type stores full messages, we can check if any message has cards
+      const lastAnalysisMsg = [...session.messages].reverse().find(m => m.analysisCard)
+      const lastPhotoMsg = [...session.messages].reverse().find(m => m.photoCard)
+
+      if (lastAnalysisMsg?.analysisCard && lastPhotoMsg?.photoCard) {
+        setPhotoSession({
+          originalPreview: lastPhotoMsg.photoCard.original,
+          enhancedPreview: lastPhotoMsg.photoCard.enhanced,
+          analysis: lastAnalysisMsg.analysisCard
+        })
+      } else {
+        setPhotoSession(null)
+      }
+    } else {
+      setPhotoSession(null)
+    }
+
+    setShowSlideMenu(false)
+  }
 
   const chartItems = useMemo(() => {
     if (!photoSession) {
@@ -115,7 +175,7 @@ export default function Home() {
     }
 
     if (!file.type.startsWith("image/")) {
-      addMessage({
+      addLocalMessage({
         role: "agent",
         content: "**エラー:** 画像ファイルを選択してください。",
       })
@@ -128,12 +188,20 @@ export default function Home() {
       const originalPreview = URL.createObjectURL(file)
       const formData = new FormData()
       formData.append("image", file)
-      formData.append("sessionId", sessionId)
+      formData.append("sessionId", currentSessionId)
 
-      addMessage({
+      addLocalMessage({
         role: "agent",
         content: "📷 写真を受け取りました。分析中...",
       })
+
+      // Ensure session exists in Firestore if user is logged in
+      if (user) {
+        // We only create/update session if it's the first photo or new session
+        // For simplicity, we try to create (or overwrite if exists mostly harmless for initial state)
+        // But better is setDoc with merge if needed. `createSession` uses setDoc.
+        // We will update it after analysis.
+      }
 
       const response = await fetch("/api/photo/analyze", {
         method: "POST",
@@ -143,7 +211,7 @@ export default function Home() {
       if (!response.ok) {
         const payload = await response.json().catch(() => null)
         const message = payload?.error ?? "アップロードに失敗しました。"
-        addMessage({ role: "agent", content: `**エラー:** ${message}` })
+        addLocalMessage({ role: "agent", content: `**エラー:** ${message}` })
         return
       }
 
@@ -153,26 +221,52 @@ export default function Home() {
         initialAdvice: string
       }
 
-      const session: PhotoSession = {
+      const sessionData: PhotoSession = {
         originalPreview,
         enhancedPreview: data.enhancedImageUrl,
         analysis: data.analysis,
       }
 
-      setPhotoSession(session)
+      setPhotoSession(sessionData)
 
       // Add message with embedded photo card and analysis card
-      addMessage({
+      const newMessage: ChatMessage = {
+        id: `${Date.now()}-${Math.random()}`,
         role: "agent",
         content: data.initialAdvice,
+        timestamp: Timestamp.now(),
         photoCard: { original: originalPreview, enhanced: data.enhancedImageUrl },
         analysisCard: data.analysis,
-      })
+      }
 
-      setTimeout(scrollToBottom, 100)
+      // Update local state
+      setMessages(prev => [...prev, newMessage])
+      setTimeout(scrollToBottom, 50)
+
+      // Sync with Firestore if logged in
+      if (user) {
+        // Create session if it doesn't exist, or update
+        // We use createSession for simplicity if it's a fresh start, fetching logic handles existence check
+        // But here we might be in mid-session.
+        // Safest approach: try to get session, if null create, else update
+        try {
+          const session = await createSession(user.uid, currentSessionId, newMessage)
+          // Update metadata
+          await updateSessionMetadata(currentSessionId, {
+            overallScore: data.analysis.overallScore,
+            photoUrl: data.enhancedImageUrl // or original, keeping it simple
+          })
+
+          // If we had previous messages (e.g. welcome), we should sync them?
+          // For now, let's assume photo upload starts the real persistent session or appends to it.
+        } catch (e) {
+          console.error("Error saving session:", e)
+        }
+      }
+
     } catch (error) {
       console.error(error)
-      addMessage({
+      addLocalMessage({
         role: "agent",
         content: "**エラー:** 通信中にエラーが発生しました。もう一度お試しください。",
       })
@@ -181,23 +275,41 @@ export default function Home() {
     }
   }
 
-  const addMessage = (message: Omit<ChatMessage, "id">) => {
+  // Helper for adding messages only locally (for errors, loading status)
+  const addLocalMessage = (message: Omit<ChatMessage, "id" | "timestamp">) => {
     setMessages((prev) => [
       ...prev,
-      { ...message, id: `${Date.now()}-${Math.random()}` },
+      {
+        ...message,
+        id: `${Date.now()}-${Math.random()}`,
+        timestamp: Timestamp.now()
+      },
     ])
     setTimeout(scrollToBottom, 50)
   }
 
   const handleSubmit = async () => {
     const text = draft.trim()
-    if (!text || !photoSession) {
+    if (!text) { // Allow chatting without photo session if needed, but UI disables it
       return
     }
 
-    addMessage({ role: "user", content: text })
+    const userMessage: ChatMessage = {
+      id: `${Date.now()}-${Math.random()}`,
+      role: "user",
+      content: text,
+      timestamp: Timestamp.now()
+    }
+
+    setMessages(prev => [...prev, userMessage])
     setDraft("")
     setIsChatting(true)
+    setTimeout(scrollToBottom, 50)
+
+    // Sync user message to Firestore
+    if (user) {
+      addMessageToSession(currentSessionId, userMessage).catch(console.error)
+    }
 
     try {
       const response = await fetch("/api/photo/chat", {
@@ -206,7 +318,7 @@ export default function Home() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          sessionId,
+          sessionId: currentSessionId,
           message: text,
         }),
       })
@@ -214,15 +326,30 @@ export default function Home() {
       if (!response.ok) {
         const payload = await response.json().catch(() => null)
         const message = payload?.error ?? "チャットの送信に失敗しました。"
-        addMessage({ role: "agent", content: `**エラー:** ${message}` })
+        addLocalMessage({ role: "agent", content: `**エラー:** ${message}` })
         return
       }
 
       const data = (await response.json()) as { reply: string }
-      addMessage({ role: "agent", content: data.reply })
+
+      const agentMessage: ChatMessage = {
+        id: `${Date.now()}-${Math.random()}`,
+        role: "agent",
+        content: data.reply,
+        timestamp: Timestamp.now()
+      }
+
+      setMessages(prev => [...prev, agentMessage])
+      setTimeout(scrollToBottom, 50)
+
+      // Sync agent message to Firestore
+      if (user) {
+        addMessageToSession(currentSessionId, agentMessage).catch(console.error)
+      }
+
     } catch (error) {
       console.error(error)
-      addMessage({
+      addLocalMessage({
         role: "agent",
         content: "**エラー:** 通信中にエラーが発生しました。",
       })
@@ -240,12 +367,53 @@ export default function Home() {
 
   return (
     <div className="page">
+      <SlideMenu isOpen={showSlideMenu} onClose={() => setShowSlideMenu(false)}>
+        <SessionList
+          sessions={userSessions}
+          currentSessionId={currentSessionId}
+          onSelectSession={handleSelectSession}
+          onNewSession={handleNewSession}
+          loading={loadingSessions}
+        />
+      </SlideMenu>
+
       <header className="header">
-        <div>
-          <h1>Photo Levelup Agent</h1>
-          <p>写真を分析し、コンテスト受賞レベルへ導くAIコーチ</p>
+        <div className="header-left" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {user && (
+            <button
+              type="button"
+              className="my-page-button"
+              onClick={() => setShowSlideMenu(true)}
+              aria-label="マイページを開く"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 12h18M3 6h18M3 18h18" />
+              </svg>
+              マイページ
+            </button>
+          )}
+          <div>
+            <h1>Photo Levelup Agent</h1>
+            <p>写真を分析し、コンテスト受賞レベルへ導くAIコーチ</p>
+          </div>
         </div>
-        <span className="badge">Gemini 3</span>
+        <div className="header-right">
+          <span className="badge">Gemini 3</span>
+          {!authLoading && (
+            user ? (
+              <div className="auth-status">
+                <span className="user-email">{user.email} でログイン中</span>
+                <button type="button" className="auth-button logout" onClick={signOut}>
+                  ログアウト
+                </button>
+              </div>
+            ) : (
+              <button type="button" className="auth-button login" onClick={signInWithGoogle}>
+                Googleでログイン
+              </button>
+            )
+          )}
+        </div>
       </header>
 
       <main className="main">

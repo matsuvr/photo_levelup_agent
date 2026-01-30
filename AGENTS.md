@@ -2,6 +2,8 @@
 
 This document outlines the mandatory rules and best practices for the AI agent working on this project.
 
+gemini-3-pro-image-preview, gemini-3-flash-preview はすでにリリースされているモデルです。勝手にモデル名を書き換えないように！！！！
+
 ## 1. Technology Stack & Tools
 - **TypeScript Linting/Formatting**: Use **Biome** explicitly. **Do NOT use ESLint**.
 - **TypeScript Types**: Enforce strict typing.
