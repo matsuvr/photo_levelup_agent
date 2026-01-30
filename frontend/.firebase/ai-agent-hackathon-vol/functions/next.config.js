@@ -2,7 +2,6 @@
 
 // next.config.js
 var nextConfig = {
-  reactStrictMode: true,
-  output: "standalone"
+  reactStrictMode: true
 };
 module.exports = nextConfig;

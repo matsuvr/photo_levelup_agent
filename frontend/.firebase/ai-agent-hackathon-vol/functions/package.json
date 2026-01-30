@@ -6,15 +6,17 @@
     "node": "22"
   },
   "dependencies": {
+    "acorn": "^8.15.0",
     "firebase": "^12.8.0",
+    "firebase-admin": "^13.6.0",
+    "firebase-frameworks": "^0.11.8",
+    "firebase-functions": "^7.0.5",
+    "markdown-it": "^14.1.0",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
     "react-markdown": "latest",
-    "remark-gfm": "latest",
-    "firebase-frameworks": "^0.11.0",
-    "firebase-functions": "^6.0.1",
-    "firebase-admin": "^11.11.1"
+    "remark-gfm": "latest"
   },
   "main": "server.js"
 }
