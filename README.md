@@ -1,6 +1,8 @@
 第4回 Agentic AI Hackathon with Google Cloud応募予定
 https://zenn.dev/hackathons/google-cloud-japan-ai-hackathon-vol4
 
+https://photo-levelup-frontend-176014985412.asia-northeast1.run.app/
+
 ## CI (local pre-push)
 
 GitHub Actions はリソース節約のため、ビルド・デプロイはローカルの pre-push で実行します。

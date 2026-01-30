@@ -10,7 +10,7 @@ runConfig:
 # Environment variables and secrets.
 env:
   - variable: BACKEND_BASE_URL
-    value: https://photo-levelup-agent-backend-4vpb3dvmfq-an.a.run.app
+    value: https://photo-levelup-agent-backend-176014985412.asia-northeast1.run.app
     availability:
       - BUILD
       - RUNTIME
