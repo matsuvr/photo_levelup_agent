@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { secureLog } from "@/lib/secure-log"
 
 export const dynamic = 'force-dynamic'
 
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(data)
   } catch (error: any) {
-    console.error("Chat error:", error)
+    secureLog.error("Chat error:", error)
     return NextResponse.json(
       { error: `Internal Server Error: ${error.message}` },
       { status: 500 }
