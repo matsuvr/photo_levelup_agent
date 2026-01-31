@@ -57,6 +57,26 @@ export type Session = {
 
 const SESSIONS_COLLECTION = "sessions"
 
+// Recursively remove undefined values from an object for Firestore compatibility
+function sanitizeForFirestore<T>(obj: T): T {
+    if (obj === null || obj === undefined) {
+        return obj
+    }
+    if (Array.isArray(obj)) {
+        return obj.map(item => sanitizeForFirestore(item)) as T
+    }
+    if (typeof obj === 'object' && !(obj instanceof Timestamp)) {
+        const result: Record<string, unknown> = {}
+        for (const [key, value] of Object.entries(obj)) {
+            if (value !== undefined) {
+                result[key] = sanitizeForFirestore(value)
+            }
+        }
+        return result as T
+    }
+    return obj
+}
+
 // Generate a unique session ID
 export function generateSessionId(): string {
     return `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -78,7 +98,7 @@ export async function createSession(
         messages: initialMessage ? [initialMessage] : [],
     }
 
-    await setDoc(doc(db, SESSIONS_COLLECTION, sessionId), session)
+    await setDoc(doc(db, SESSIONS_COLLECTION, sessionId), sanitizeForFirestore(session))
     return session
 }
 
@@ -117,10 +137,10 @@ export async function addMessageToSession(
     }
 
     const updatedMessages = [...session.messages, message]
-    await updateDoc(doc(db, SESSIONS_COLLECTION, sessionId), {
+    await updateDoc(doc(db, SESSIONS_COLLECTION, sessionId), sanitizeForFirestore({
         messages: updatedMessages,
         updatedAt: Timestamp.now(),
-    })
+    }))
 }
 
 // Update session metadata (title, score, photoUrl)
