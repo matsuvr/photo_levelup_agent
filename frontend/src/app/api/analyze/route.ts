@@ -48,7 +48,8 @@ export async function POST(request: Request) {
       )
     }
 
-    return NextResponse.json(payload)
+    // Backend now returns { jobId, status } for async processing
+    return NextResponse.json(payload, { status: backendResponse.status })
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error)
     console.error("Analyze: Internal error", error)
@@ -58,4 +59,3 @@ export async function POST(request: Request) {
     )
   }
 }
-

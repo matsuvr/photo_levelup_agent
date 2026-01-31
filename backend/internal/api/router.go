@@ -10,6 +10,7 @@ func newRouter(deps *handlers.Dependencies) http.Handler {
 	mux := http.NewServeMux()
 
 	mux.Handle("POST /photo/analyze", handlers.NewAnalyzeHandler(deps))
+	mux.Handle("GET /photo/analyze/status", handlers.NewAnalyzeStatusHandler())
 	mux.Handle("POST /photo/chat", handlers.NewChatHandler(deps))
 
 	return mux
