@@ -27,6 +27,44 @@ type PhotoSession = {
   analysis: AnalysisResult
 }
 
+const defaultCategoryScore: CategoryScore = {
+  score: 0,
+  comment: "評価なし",
+  improvement: "改善提案なし"
+}
+
+function ensureAnalysisResult(analysis: Partial<AnalysisResult> | undefined): AnalysisResult {
+  if (!analysis) {
+    return {
+      summary: "分析データがありません",
+      overallComment: "分析を実行できませんでした",
+      overallScore: 0,
+      composition: defaultCategoryScore,
+      exposure: defaultCategoryScore,
+      color: defaultCategoryScore,
+      lighting: defaultCategoryScore,
+      focus: defaultCategoryScore,
+      development: defaultCategoryScore,
+      distance: defaultCategoryScore,
+      intentClarity: defaultCategoryScore,
+    }
+  }
+
+  return {
+    summary: analysis.summary || "サマリーなし",
+    overallComment: analysis.overallComment || "コメントなし",
+    overallScore: analysis.overallScore ?? 0,
+    composition: analysis.composition || defaultCategoryScore,
+    exposure: analysis.exposure || defaultCategoryScore,
+    color: analysis.color || defaultCategoryScore,
+    lighting: analysis.lighting || defaultCategoryScore,
+    focus: analysis.focus || defaultCategoryScore,
+    development: analysis.development || defaultCategoryScore,
+    distance: analysis.distance || defaultCategoryScore,
+    intentClarity: analysis.intentClarity || defaultCategoryScore,
+  }
+}
+
 const initialMessage: ChatMessage = {
   id: "welcome",
   role: "agent",
@@ -127,7 +165,7 @@ export default function Home() {
       return []
     }
 
-    const analysis = photoSession.analysis
+    const analysis = ensureAnalysisResult(photoSession.analysis)
     return [
       { label: "構図", value: analysis.composition.score },
       { label: "露出", value: analysis.exposure.score },
@@ -145,7 +183,7 @@ export default function Home() {
       return []
     }
 
-    const analysis = photoSession.analysis
+    const analysis = ensureAnalysisResult(photoSession.analysis)
     return [
       { label: "構図", data: analysis.composition },
       { label: "露出", data: analysis.exposure },
@@ -261,10 +299,12 @@ export default function Home() {
         throw new Error("分析結果を取得できませんでした")
       }
 
+      const safeAnalysis = ensureAnalysisResult(data.analysis)
+
       const sessionData: PhotoSession = {
         originalPreview,
         enhancedPreview: data.enhancedImageUrl,
-        analysis: data.analysis,
+        analysis: safeAnalysis,
       }
 
       setPhotoSession(sessionData)
@@ -276,7 +316,7 @@ export default function Home() {
         content: data.initialAdvice,
         timestamp: Timestamp.now(),
         photoCard: { original: originalPreview, enhanced: data.enhancedImageUrl },
-        analysisCard: data.analysis,
+        analysisCard: safeAnalysis,
       }
 
       // Update local state
@@ -288,7 +328,7 @@ export default function Home() {
         try {
           await createSession(user.uid, currentSessionId, newMessage)
           await updateSessionMetadata(currentSessionId, {
-            overallScore: data.analysis.overallScore,
+            overallScore: safeAnalysis.overallScore,
             photoUrl: data.enhancedImageUrl
           })
         } catch (e) {
