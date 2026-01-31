@@ -1,34 +1,38 @@
 {
-  "name": "photo-levelup-frontend",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "echo \"Lint skipped due to ESLint/Next.js version mismatch.\""
-  },
-  "engines": {
-    "node": "22"
-  },
-  "dependencies": {
-    "acorn": "^8.15.0",
-    "firebase": "^12.8.0",
-    "firebase-admin": "^13.6.0",
-    "firebase-frameworks": "^0.11.8",
-    "firebase-functions": "^7.0.5",
-    "markdown-it": "^14.1.0",
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "react-markdown": "latest",
-    "remark-gfm": "latest"
-  },
-  "devDependencies": {
-    "@types/markdown-it": "^14.1.2",
-    "@types/node": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "typescript": "latest"
-  }
+	"name": "photo-levelup-frontend",
+	"version": "0.1.0",
+	"private": true,
+	"scripts": {
+		"dev": "next dev",
+		"build": "next build",
+		"start": "next start",
+		"lint": "biome lint .",
+		"format": "biome format . --write",
+		"typecheck": "tsc --noEmit",
+		"check": "biome check --write ."
+	},
+	"engines": {
+		"node": "22"
+	},
+	"dependencies": {
+		"acorn": "^8.15.0",
+		"firebase": "^12.8.0",
+		"firebase-admin": "^13.6.0",
+		"firebase-frameworks": "^0.11.8",
+		"firebase-functions": "^7.0.5",
+		"markdown-it": "^14.1.0",
+		"next": "latest",
+		"react": "latest",
+		"react-dom": "latest",
+		"react-markdown": "latest",
+		"remark-gfm": "latest"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.3.13",
+		"@types/markdown-it": "^14.1.2",
+		"@types/node": "latest",
+		"@types/react": "latest",
+		"@types/react-dom": "latest",
+		"typescript": "latest"
+	}
 }
