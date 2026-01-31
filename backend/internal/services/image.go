@@ -71,3 +71,8 @@ func (p *ImageProcessor) ResizeToMaxEdge(reader io.Reader, contentType string) (
 	}
 	return buffer.Bytes(), "image/jpeg", nil
 }
+
+// ResizeToMaxEdgeFromBytes is like ResizeToMaxEdge but accepts a byte slice
+func (p *ImageProcessor) ResizeToMaxEdgeFromBytes(data []byte, contentType string) ([]byte, string, error) {
+	return p.ResizeToMaxEdge(bytes.NewReader(data), contentType)
+}

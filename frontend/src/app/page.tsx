@@ -195,30 +195,69 @@ export default function Home() {
         content: "📷 写真を受け取りました。分析中...",
       })
 
-      // Ensure session exists in Firestore if user is logged in
-      if (user) {
-        // We only create/update session if it's the first photo or new session
-        // For simplicity, we try to create (or overwrite if exists mostly harmless for initial state)
-        // But better is setDoc with merge if needed. `createSession` uses setDoc.
-        // We will update it after analysis.
-      }
-
-      const response = await fetch("/api/analyze", {
+      // Submit for async processing
+      const submitResponse = await fetch("/api/analyze", {
         method: "POST",
         body: formData,
       })
 
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null)
+      if (!submitResponse.ok) {
+        const payload = await submitResponse.json().catch(() => null)
         const message = payload?.error ?? "アップロードに失敗しました。"
         addLocalMessage({ role: "agent", content: `**エラー:** ${message}` })
         return
       }
 
-      const data = (await response.json()) as {
+      const submitData = (await submitResponse.json()) as {
+        jobId: string
+        status: string
+      }
+
+      console.log("Job submitted:", submitData.jobId)
+
+      // Poll for job completion
+      const pollInterval = 2000 // 2 seconds
+      const maxAttempts = 120 // 4 minutes max
+      let attempts = 0
+
+      const pollForResult = async (): Promise<{
         enhancedImageUrl: string
         analysis: AnalysisResult
         initialAdvice: string
+      } | null> => {
+        while (attempts < maxAttempts) {
+          attempts++
+          await new Promise(resolve => setTimeout(resolve, pollInterval))
+
+          const statusResponse = await fetch(
+            `/api/analyze/status?jobId=${encodeURIComponent(submitData.jobId)}`
+          )
+
+          if (!statusResponse.ok) {
+            console.error("Status check failed:", statusResponse.status)
+            continue
+          }
+
+          const statusData = await statusResponse.json()
+          console.log("Job status:", statusData.status)
+
+          if (statusData.status === "completed" && statusData.result) {
+            return statusData.result
+          }
+
+          if (statusData.status === "failed") {
+            throw new Error(statusData.error || "分析に失敗しました")
+          }
+
+          // Still processing, continue polling
+        }
+
+        throw new Error("分析がタイムアウトしました。もう一度お試しください。")
+      }
+
+      const data = await pollForResult()
+      if (!data) {
+        throw new Error("分析結果を取得できませんでした")
       }
 
       const sessionData: PhotoSession = {
@@ -245,20 +284,12 @@ export default function Home() {
 
       // Sync with Firestore if logged in
       if (user) {
-        // Create session if it doesn't exist, or update
-        // We use createSession for simplicity if it's a fresh start, fetching logic handles existence check
-        // But here we might be in mid-session.
-        // Safest approach: try to get session, if null create, else update
         try {
-          const session = await createSession(user.uid, currentSessionId, newMessage)
-          // Update metadata
+          await createSession(user.uid, currentSessionId, newMessage)
           await updateSessionMetadata(currentSessionId, {
             overallScore: data.analysis.overallScore,
-            photoUrl: data.enhancedImageUrl // or original, keeping it simple
+            photoUrl: data.enhancedImageUrl
           })
-
-          // If we had previous messages (e.g. welcome), we should sync them?
-          // For now, let's assume photo upload starts the real persistent session or appends to it.
         } catch (e) {
           console.error("Error saving session:", e)
         }
@@ -266,14 +297,16 @@ export default function Home() {
 
     } catch (error) {
       console.error(error)
+      const errorMessage = error instanceof Error ? error.message : "通信中にエラーが発生しました。"
       addLocalMessage({
         role: "agent",
-        content: "**エラー:** 通信中にエラーが発生しました。もう一度お試しください。",
+        content: `**エラー:** ${errorMessage}`,
       })
     } finally {
       setIsUploading(false)
     }
   }
+
 
   // Helper for adding messages only locally (for errors, loading status)
   const addLocalMessage = (message: Omit<ChatMessage, "id" | "timestamp">) => {
@@ -895,12 +928,12 @@ function BeforeAfterSlider({
       style={aspectRatio ? ({ "--slider-aspect": aspectRatio } as CSSProperties) : undefined}
     >
       <div className="slider-image-container">
-        <img src={afterSrc} alt="修正後" className="slider-image after" />
+        <img src={beforeSrc} alt="元画像" className="slider-image before" />
         <div
           className="slider-image-clip"
-          style={{ clipPath: `inset(0 ${100 - sliderPosition}% 0 0)` }}
+          style={{ clipPath: `inset(0 0 0 ${sliderPosition}%)` }}
         >
-          <img src={beforeSrc} alt="元画像" className="slider-image before" />
+          <img src={afterSrc} alt="修正後" className="slider-image after" />
         </div>
       </div>
       <div

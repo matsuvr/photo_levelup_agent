@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strings"
 
+	"github.com/google/uuid"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/runner"
 	"google.golang.org/adk/session"
@@ -18,20 +20,17 @@ import (
 	"github.com/matsuvr/photo_levelup_agent/backend/internal/services"
 )
 
-type analyzeResponse struct {
-	EnhancedImageURL string                  `json:"enhancedImageUrl"`
-	Analysis         services.AnalysisResult `json:"analysis"`
-	InitialAdvice    string                  `json:"initialAdvice"`
-}
-
+// AnalyzeHandler handles photo analysis requests
 type AnalyzeHandler struct {
 	deps *Dependencies
 }
 
+// NewAnalyzeHandler creates a new analyze handler
 func NewAnalyzeHandler(deps *Dependencies) *AnalyzeHandler {
 	return &AnalyzeHandler{deps: deps}
 }
 
+// ServeHTTP handles POST requests to start an async analysis job
 func (h *AnalyzeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
@@ -56,48 +55,129 @@ func (h *AnalyzeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		sessionID = "default"
 	}
 
-	ctx := r.Context()
+	// Read file into memory for async processing
+	imageData, err := io.ReadAll(file)
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, "Failed to read file")
+		return
+	}
+	contentType := header.Header.Get("Content-Type")
+
+	// Create job and return immediately
+	jobID := uuid.New().String()
+	jobStore := GetJobStore()
+	jobStore.Create(jobID)
+
+	log.Printf("INFO: Created job %s for session %s", jobID, sessionID)
+
+	// Start async processing
+	go h.processAnalysis(jobID, sessionID, imageData, contentType)
+
+	// Return job ID immediately
+	writeJSON(w, http.StatusAccepted, map[string]string{
+		"jobId":  jobID,
+		"status": string(JobStatusPending),
+	})
+}
+
+// processAnalysis runs the analysis in background
+func (h *AnalyzeHandler) processAnalysis(jobID, sessionID string, imageData []byte, contentType string) {
+	jobStore := GetJobStore()
+	jobStore.SetProcessing(jobID)
+
+	ctx := context.Background()
+
+	// Storage client
 	storageClient, err := services.NewStorageClient(ctx)
 	if err != nil {
-		log.Printf("ERROR: Storage client error: %v", err)
-		writeJSONError(w, http.StatusInternalServerError, "Storage client error")
+		log.Printf("ERROR: Job %s - Storage client error: %v", jobID, err)
+		jobStore.SetFailed(jobID, "Storage client error")
 		return
 	}
 
+	// Resize image
 	processor := services.NewImageProcessor()
-	resized, contentType, err := processor.ResizeToMaxEdge(file, header.Header.Get("Content-Type"))
+	resized, resizedContentType, err := processor.ResizeToMaxEdgeFromBytes(imageData, contentType)
 	if err != nil {
-		log.Printf("ERROR: Failed to resize image: %v", err)
-		writeJSONError(w, http.StatusBadRequest, "Invalid image")
+		log.Printf("ERROR: Job %s - Failed to resize image: %v", jobID, err)
+		jobStore.SetFailed(jobID, "Invalid image")
 		return
 	}
-	log.Printf("INFO: Image resized successfully, size=%d bytes, contentType=%s", len(resized), contentType)
+	log.Printf("INFO: Job %s - Image resized successfully, size=%d bytes", jobID, len(resized))
 
-	imageURL, err := storageClient.UploadImage(ctx, resized, contentType)
+	// Upload to GCS
+	imageURL, err := storageClient.UploadImage(ctx, resized, resizedContentType)
 	if err != nil {
-		log.Printf("ERROR: Failed to upload image to GCS: %v", err)
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		log.Printf("ERROR: Job %s - Failed to upload image to GCS: %v", jobID, err)
+		jobStore.SetFailed(jobID, err.Error())
 		return
 	}
 
+	// Analyze with agent
 	analysis, err := analyzeWithAgent(ctx, h.deps, sessionID, imageURL)
 	if err != nil {
-		log.Printf("ERROR: Failed to analyze image: %v", err)
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		log.Printf("ERROR: Job %s - Failed to analyze image: %v", jobID, err)
+		jobStore.SetFailed(jobID, err.Error())
 		return
 	}
 
+	// Generate enhanced image
 	enhancedURL, err := generateEnhancedImage(ctx, storageClient, imageURL, analysis)
 	if err != nil {
-		log.Printf("ERROR: Failed to generate enhanced image: %v", err)
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		log.Printf("ERROR: Job %s - Failed to generate enhanced image: %v", jobID, err)
+		jobStore.SetFailed(jobID, err.Error())
 		return
 	}
 
-	response := analyzeResponse{
+	// Mark as completed
+	result := &AnalyzeResult{
 		EnhancedImageURL: enhancedURL,
 		Analysis:         *analysis,
 		InitialAdvice:    analysis.Summary,
+	}
+	jobStore.SetCompleted(jobID, result)
+	log.Printf("INFO: Job %s - Completed successfully", jobID)
+}
+
+// AnalyzeStatusHandler handles job status queries
+type AnalyzeStatusHandler struct{}
+
+// NewAnalyzeStatusHandler creates a new status handler
+func NewAnalyzeStatusHandler() *AnalyzeStatusHandler {
+	return &AnalyzeStatusHandler{}
+}
+
+// ServeHTTP handles GET requests to check job status
+func (h *AnalyzeStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	jobID := r.URL.Query().Get("jobId")
+	if jobID == "" {
+		writeJSONError(w, http.StatusBadRequest, "jobId is required")
+		return
+	}
+
+	jobStore := GetJobStore()
+	job, ok := jobStore.Get(jobID)
+	if !ok {
+		writeJSONError(w, http.StatusNotFound, "Job not found")
+		return
+	}
+
+	response := map[string]interface{}{
+		"jobId":  job.ID,
+		"status": string(job.Status),
+	}
+
+	if job.Status == JobStatusCompleted && job.Result != nil {
+		response["result"] = job.Result
+	}
+
+	if job.Status == JobStatusFailed {
+		response["error"] = job.Error
 	}
 
 	writeJSON(w, http.StatusOK, response)
