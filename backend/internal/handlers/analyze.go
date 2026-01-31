@@ -76,21 +76,21 @@ func (h *AnalyzeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	imageURL, err := storageClient.UploadImage(ctx, resized, contentType)
 	if err != nil {
 		log.Printf("ERROR: Failed to upload image to GCS: %v", err)
-		writeJSONError(w, http.StatusInternalServerError, "Failed to upload image")
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	analysis, err := analyzeWithAgent(ctx, h.deps, sessionID, imageURL)
 	if err != nil {
 		log.Printf("ERROR: Failed to analyze image: %v", err)
-		writeJSONError(w, http.StatusInternalServerError, "Failed to analyze image")
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	enhancedURL, err := generateEnhancedImage(ctx, storageClient, imageURL, analysis)
 	if err != nil {
 		log.Printf("ERROR: Failed to generate enhanced image: %v", err)
-		writeJSONError(w, http.StatusInternalServerError, "Failed to generate enhanced image")
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 

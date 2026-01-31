@@ -52,7 +52,7 @@ func (h *ChatHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	reply, err := chatWithAgent(ctx, h.deps, req.SessionID, req.Message)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "Failed to process chat")
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
