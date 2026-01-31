@@ -1,0 +1,37 @@
+{
+  "name": "photo_levelup_agent",
+  "version": "1.0.0",
+  "description": "第4回 Agentic AI Hackathon with Google Cloud応募予定 https://zenn.dev/hackathons/google-cloud-japan-ai-hackathon-vol4",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "husky"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/matsuvr/photo_levelup_agent.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/matsuvr/photo_levelup_agent/issues"
+  },
+  "homepage": "https://github.com/matsuvr/photo_levelup_agent#readme",
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7"
+  },
+  "lint-staged": {
+    "frontend/**/*.{js,ts,jsx,tsx,json}": [
+      "bash -c 'cd frontend && npx @biomejs/biome check --write \"$@\"' --"
+    ],
+    "frontend/**/*.{ts,tsx}": [
+      "bash -c 'npm exec --prefix frontend -- tsc --noEmit --project frontend/tsconfig.json'"
+    ],
+    "backend/**/*.go": [
+      "bash -c 'cd backend && go fmt ./... && go vet ./...'"
+    ]
+  }
+}
