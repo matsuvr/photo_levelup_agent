@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { useCallback, useEffect, useMemo, useRef, useState, CSSProperties } from "react"
 import { useAuth } from "@/context/AuthContext"
+import { secureLog } from "@/lib/secure-log"
 import {
   type Session,
   type ChatMessage,
@@ -79,7 +80,7 @@ export default function Home() {
       const sessions = await getUserSessions(user.uid)
       setUserSessions(sessions)
     } catch (error) {
-      console.error("Failed to load sessions:", error)
+      secureLog.error("Failed to load sessions:", error)
     } finally {
       setLoadingSessions(false)
     }
@@ -213,7 +214,7 @@ export default function Home() {
         status: string
       }
 
-      console.log("Job submitted:", submitData.jobId)
+      secureLog.info("Job submitted:", submitData.jobId)
 
       // Poll for job completion
       const pollInterval = 2000 // 2 seconds
@@ -234,12 +235,12 @@ export default function Home() {
           )
 
           if (!statusResponse.ok) {
-            console.error("Status check failed:", statusResponse.status)
+            secureLog.error("Status check failed:", statusResponse.status)
             continue
           }
 
           const statusData = await statusResponse.json()
-          console.log("Job status:", statusData.status)
+          secureLog.info("Job status:", statusData.status)
 
           if (statusData.status === "completed" && statusData.result) {
             return statusData.result
@@ -291,12 +292,12 @@ export default function Home() {
             photoUrl: data.enhancedImageUrl
           })
         } catch (e) {
-          console.error("Error saving session:", e)
+          secureLog.error("Error saving session:", e)
         }
       }
 
     } catch (error) {
-      console.error(error)
+      secureLog.error(error)
       const errorMessage = error instanceof Error ? error.message : "通信中にエラーが発生しました。"
       addLocalMessage({
         role: "agent",
@@ -341,7 +342,7 @@ export default function Home() {
 
     // Sync user message to Firestore
     if (user) {
-      addMessageToSession(currentSessionId, userMessage).catch(console.error)
+      addMessageToSession(currentSessionId, userMessage).catch(secureLog.error)
     }
 
     try {
@@ -377,11 +378,11 @@ export default function Home() {
 
       // Sync agent message to Firestore
       if (user) {
-        addMessageToSession(currentSessionId, agentMessage).catch(console.error)
+        addMessageToSession(currentSessionId, agentMessage).catch(secureLog.error)
       }
 
     } catch (error) {
-      console.error(error)
+      secureLog.error(error)
       addLocalMessage({
         role: "agent",
         content: "**エラー:** 通信中にエラーが発生しました。",
@@ -877,7 +878,7 @@ function BeforeAfterSlider({
         const ratio = fallbackWidth / fallbackHeight
         setAspectRatio(`${ratio}`)
       } catch (error) {
-        console.warn("Failed to read image dimensions", error)
+        secureLog.warn("Failed to read image dimensions", error)
         if (!isCancelled) {
           setAspectRatio(null)
         }

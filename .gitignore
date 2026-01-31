@@ -1,5 +1,17 @@
+# Security: Credentials and secrets
 gcp-key.json
+*.key
+*.pem
+*.p12
+*.pfx
+.env*
+!.env.example
 
+# Firebase - CRITICAL: Never commit debug logs or local configs
+firebase-debug.log
+firebase-debug.*.log
+.firebase/
+.firebaserc
 
 # If you prefer the allow list template instead of the deny list, see community template:
 # https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
