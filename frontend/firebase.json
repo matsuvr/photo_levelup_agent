@@ -1,27 +1,23 @@
 {
-  "apphosting": {
-    "backendId": "photo-coach-backend",
-    "rootDir": "/",
-    "ignore": [
-      "node_modules",
-      ".git",
-      "firebase-debug.log",
-      "firebase-debug.*.log",
-      "functions"
-    ]
-  },
-  "storage": {
-    "rules": "storage.rules"
-  },
-  "hosting": {
-    "source": ".",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
-    "frameworksBackend": {
-      "region": "asia-northeast1"
-    }
-  }
+	"apphosting": {
+		"backendId": "photo-coach-backend",
+		"rootDir": "/",
+		"ignore": [
+			"node_modules",
+			".git",
+			"firebase-debug.log",
+			"firebase-debug.*.log",
+			"functions"
+		]
+	},
+	"storage": {
+		"rules": "storage.rules"
+	},
+	"hosting": {
+		"source": ".",
+		"ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+		"frameworksBackend": {
+			"region": "asia-northeast1"
+		}
+	}
 }

@@ -1,52 +1,77 @@
-mutation CreateChallenge($title: String!, $description: String!, $startDate: Timestamp!, $endDate: Timestamp!, $rules: String, $examplePhotos: [String]) @auth(level: USER) {
-  challenge_insert(data: {
-    title: $title,
-    description: $description,
-    startDate: $startDate,
-    endDate: $endDate,
-    rules: $rules,
-    examplePhotos: $examplePhotos,
-    creatorId_expr: "auth.uid"
-  })
+mutation CreateChallenge(
+	$title: String!
+	$description: String!
+	$startDate: Timestamp!
+	$endDate: Timestamp!
+	$rules: String
+	$examplePhotos: [String]
+) @auth(level: USER) {
+	challenge_insert(
+		data: {
+			title: $title
+			description: $description
+			startDate: $startDate
+			endDate: $endDate
+			rules: $rules
+			examplePhotos: $examplePhotos
+			creatorId_expr: "auth.uid"
+		}
+	)
 }
 
-query ListChallenges @auth(level: PUBLIC, insecureReason: "This operation is safe to expose to the public") {
-  challenges {
-    id
-    title
-    description
-    startDate
-    endDate
-    rules
-    examplePhotos
-    creator {
-      id
-      displayName
-    }
-  }
+query ListChallenges
+@auth(
+	level: PUBLIC
+	insecureReason: "This operation is safe to expose to the public"
+) {
+	challenges {
+		id
+		title
+		description
+		startDate
+		endDate
+		rules
+		examplePhotos
+		creator {
+			id
+			displayName
+		}
+	}
 }
 
-mutation CreatePhoto($challengeId: UUID!, $imageUrl: String!, $title: String!, $uploadDate: Timestamp!, $description: String) @auth(level: USER) {
-  photo_insert(data: {
-    challengeId: $challengeId,
-    imageUrl: $imageUrl,
-    title: $title,
-    uploadDate: $uploadDate,
-    description: $description,
-    userId_expr: "auth.uid"
-  })
+mutation CreatePhoto(
+	$challengeId: UUID!
+	$imageUrl: String!
+	$title: String!
+	$uploadDate: Timestamp!
+	$description: String
+) @auth(level: USER) {
+	photo_insert(
+		data: {
+			challengeId: $challengeId
+			imageUrl: $imageUrl
+			title: $title
+			uploadDate: $uploadDate
+			description: $description
+			userId_expr: "auth.uid"
+		}
+	)
 }
 
-query ListPhotosForChallenge($challengeId: UUID!) @auth(level: PUBLIC, insecureReason: "This operation is safe to expose to the public") {
-  photos(where: {challengeId: {eq: $challengeId}}) {
-    id
-    imageUrl
-    title
-    description
-    uploadDate
-    user {
-      id
-      displayName
-    }
-  }
+query ListPhotosForChallenge($challengeId: UUID!)
+@auth(
+	level: PUBLIC
+	insecureReason: "This operation is safe to expose to the public"
+) {
+	photos(where: { challengeId: { eq: $challengeId } }) {
+		id
+		imageUrl
+		title
+		description
+		uploadDate
+		user {
+			id
+			displayName
+		}
+	}
 }
