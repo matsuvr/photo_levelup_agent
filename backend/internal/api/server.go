@@ -23,10 +23,8 @@ func NewServer(ctx context.Context) (*Server, error) {
 	}
 
 	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
-	location := os.Getenv("GOOGLE_CLOUD_LOCATION")
-	if location == "" {
-		location = os.Getenv("GOOGLE_CLOUD_REGION")
-	}
+	// Preview models require global endpoint for both model and session service
+	location := "global"
 	agentEngineID := os.Getenv("AGENT_ENGINE_ID")
 
 	var sessionService session.Service
