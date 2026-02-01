@@ -41,10 +41,8 @@ const systemInstruction = `あなたは写真指導の専門家AIアシスタン
 func NewPhotoCoachAgent(ctx context.Context) (agent.Agent, error) {
 	modelName := os.Getenv("VERTEXAI_LLM")
 	project := os.Getenv("GOOGLE_CLOUD_PROJECT")
-	location := os.Getenv("GOOGLE_CLOUD_LOCATION")
-	if location == "" {
-		location = os.Getenv("GOOGLE_CLOUD_REGION")
-	}
+	// Preview models require global endpoint
+	location := "global"
 	if modelName == "" {
 		modelName = "gemini-3-pro-preview"
 	}

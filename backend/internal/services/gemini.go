@@ -302,11 +302,8 @@ func buildCategoryLines(categories []categorySummary) []string {
 }
 
 func resolveLocation() string {
-	location := os.Getenv("GOOGLE_CLOUD_LOCATION")
-	if location == "" {
-		location = os.Getenv("GOOGLE_CLOUD_REGION")
-	}
-	return location
+	// Preview models require global endpoint
+	return "global"
 }
 
 func modelName() string {
