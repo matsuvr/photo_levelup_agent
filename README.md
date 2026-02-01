@@ -12,13 +12,12 @@ https://photo-coach-backend--ai-agent-hackathon-vol.us-central1.hosted.app/
 
 ## 使用技術
 
-- **フロントエンド**: React, TypeScript, Tailwind CSS
-- **バックエンド**: Python, FastAPI
-- **AIモデル**: Google Cloud Vertex AI, LangChain, LangGraph
-- **画像処理**: OpenCV, PIL
+- **フロントエンド**: Next.js、Firebase App Hosting
+- **バックエンド**: Go、Cloud Run
+- **AIモデル**: Google Cloud Vertex AI
 - **データベース**: Firestore
 - **認証**: Firebase Authentication
-- **デプロイ**: Firebase Hosting, Google Cloud Run
+- **デプロイ**: Firebase App Hosting, Google Cloud Run
 
 ## 機能
 
