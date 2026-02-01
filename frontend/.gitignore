@@ -11,11 +11,25 @@ yarn-error.log*
 pnpm-debug.log*
 *.tsbuildinfo
 
-# Firebase - CRITICAL: Never commit debug logs or local configs
+# =============================================================================
+# STATIC HOSTING PREVENTION - DO NOT REMOVE THESE ENTRIES
+# =============================================================================
+# This project uses Firebase App Hosting (Cloud Run) for Next.js SSR.
+# Static hosting must NEVER be used. The following entries prevent
+# accidental static deployment artifacts from being committed.
+#
+# NEVER run: firebase deploy --only hosting
+# ALWAYS use: Firebase App Hosting (automatic via apphosting.yaml)
+# =============================================================================
+
+# Firebase cache and static hosting artifacts - MUST BE IGNORED
+.firebase/
 firebase-debug.log
 firebase-debug.*.log
-.firebase/
-.firebaserc
+
+# Static export output - MUST NOT BE COMMITTED
+# (next export is incompatible with App Hosting)
+out/
 
 .agent/
 .agents/

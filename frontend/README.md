@@ -1,6 +1,6 @@
 # Photo Levelup Frontend
 
-Firebase Hosting にデプロイできる Next.js フロントエンドです。
+Firebase App Hosting (Cloud Run) にデプロイできる Next.js フロントエンドです。
 
 ## セットアップ
 
@@ -27,3 +27,18 @@ npm run dev
 npm run build
 npm run start
 ```
+
+## デプロイ
+
+> [!CAUTION]
+> **絶対に `firebase deploy --only hosting` を実行しないでください！**
+>
+> このプロジェクトは Firebase App Hosting (Cloud Run) を使用しています。
+> 静的ホスティングではありません。
+
+デプロイは自動で行われます：
+1. `main` ブランチへプッシュ
+2. Firebase App Hosting が `apphosting.yaml` を読み取り自動デプロイ
+
+手動デプロイが必要な場合は Firebase Console から App Hosting を再デプロイしてください。
+
