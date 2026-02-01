@@ -285,6 +285,20 @@ export default function Home() {
 
 			secureLog.info("Job submitted:", submitData.jobId);
 
+			// Validate jobId before polling
+			if (!submitData.jobId) {
+				secureLog.error(
+					"Backend returned invalid response: missing jobId",
+					submitData,
+				);
+				addLocalMessage({
+					role: "agent",
+					content:
+						"**エラー:** サーバーからの応答が不正です。しばらくしてからお試しください。",
+				});
+				return;
+			}
+
 			// Poll for job completion
 			const pollInterval = 2000; // 2 seconds
 			const maxAttempts = 120; // 4 minutes max
