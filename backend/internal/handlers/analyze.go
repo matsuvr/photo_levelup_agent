@@ -193,25 +193,20 @@ func analyzeWithAgent(ctx context.Context, deps *Dependencies, sessionID string,
 		return nil, err
 	}
 
-	if _, err := deps.SessionService.Create(ctx, &session.CreateRequest{
-		AppName:   "photo_levelup",
-		UserID:    sessionID,
-		SessionID: sessionID,
-	}); err != nil {
-		if !strings.Contains(err.Error(), "already exists") {
-			return nil, err
-		}
+	resolvedSessionID, err := resolveSessionID(ctx, deps.SessionService, "photo_levelup", sessionID)
+	if err != nil {
+		return nil, err
 	}
 
 	content := genai.NewContentFromText(fmt.Sprintf("次の写真を分析してください。URL: %s", imageURL), genai.RoleUser)
-	for event, err := range runner.Run(ctx, sessionID, sessionID, content, agent.RunConfig{}) {
+	for event, err := range runner.Run(ctx, sessionID, resolvedSessionID, content, agent.RunConfig{}) {
 		if err != nil {
 			return nil, err
 		}
 		if event == nil || !event.IsFinalResponse() {
 			continue
 		}
-		analysis, err := extractAnalysisFromState(ctx, deps.SessionService, sessionID)
+		analysis, err := extractAnalysisFromState(ctx, deps.SessionService, sessionID, resolvedSessionID)
 		if err != nil {
 			return nil, err
 		}
@@ -253,11 +248,12 @@ func extractAnalysisFromState(
 	ctx context.Context,
 	sessionService session.Service,
 	sessionID string,
+	resolvedSessionID string,
 ) (*services.AnalysisResult, error) {
 	response, err := sessionService.Get(ctx, &session.GetRequest{
 		AppName:   "photo_levelup",
 		UserID:    sessionID,
-		SessionID: sessionID,
+		SessionID: resolvedSessionID,
 	})
 	if err != nil {
 		return nil, err

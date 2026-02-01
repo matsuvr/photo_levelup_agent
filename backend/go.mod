@@ -1,23 +1,25 @@
 module github.com/matsuvr/photo_levelup_agent/backend
 
-go 1.24.4
+go 1.25.6
 
 require (
 	cloud.google.com/go/storage v1.56.1
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	golang.org/x/image v0.26.0
-	google.golang.org/adk v0.3.0
+	google.golang.org/adk v0.4.0
 	google.golang.org/genai v1.43.0
 )
 
 require (
 	cel.dev/expr v0.24.0 // indirect
 	cloud.google.com/go v0.123.0 // indirect
+	cloud.google.com/go/aiplatform v1.105.0 // indirect
 	cloud.google.com/go/auth v0.17.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
 	cloud.google.com/go/iam v1.5.3 // indirect
+	cloud.google.com/go/longrunning v0.7.0 // indirect
 	cloud.google.com/go/monitoring v1.24.3 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.30.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.53.0 // indirect

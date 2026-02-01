@@ -69,18 +69,13 @@ func chatWithAgent(ctx context.Context, deps *Dependencies, sessionID, message s
 		return "", err
 	}
 
-	if _, err := deps.SessionService.Create(ctx, &session.CreateRequest{
-		AppName:   "photo_levelup",
-		UserID:    sessionID,
-		SessionID: sessionID,
-	}); err != nil {
-		if !strings.Contains(err.Error(), "already exists") {
-			return "", err
-		}
+	resolvedSessionID, err := resolveSessionID(ctx, deps.SessionService, "photo_levelup", sessionID)
+	if err != nil {
+		return "", err
 	}
 
 	content := genai.NewContentFromText(message, genai.RoleUser)
-	for event, err := range runner.Run(ctx, sessionID, sessionID, content, agent.RunConfig{}) {
+	for event, err := range runner.Run(ctx, sessionID, resolvedSessionID, content, agent.RunConfig{}) {
 		if err != nil {
 			return "", err
 		}
@@ -94,4 +89,50 @@ func chatWithAgent(ctx context.Context, deps *Dependencies, sessionID, message s
 	}
 
 	return "", errors.New("chat response missing")
+}
+
+func resolveSessionID(ctx context.Context, sessionService session.Service, appName, userID string) (string, error) {
+	listResponse, err := sessionService.List(ctx, &session.ListRequest{
+		AppName: appName,
+		UserID:  userID,
+	})
+	if err != nil {
+		if createResponse, createErr := sessionService.Create(ctx, &session.CreateRequest{
+			AppName: appName,
+			UserID:  userID,
+		}); createErr == nil {
+			newSessionID := createResponse.Session.ID()
+			if strings.TrimSpace(newSessionID) != "" {
+				return newSessionID, nil
+			}
+		}
+		return "", err
+	}
+
+	if len(listResponse.Sessions) > 0 {
+		latest := listResponse.Sessions[0]
+		latestTime := latest.LastUpdateTime()
+		for _, candidate := range listResponse.Sessions[1:] {
+			if candidate.LastUpdateTime().After(latestTime) {
+				latest = candidate
+				latestTime = candidate.LastUpdateTime()
+			}
+		}
+		return latest.ID(), nil
+	}
+
+	createResponse, err := sessionService.Create(ctx, &session.CreateRequest{
+		AppName: appName,
+		UserID:  userID,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	newSessionID := createResponse.Session.ID()
+	if strings.TrimSpace(newSessionID) == "" {
+		return "", errors.New("created session has empty ID")
+	}
+
+	return newSessionID, nil
 }
