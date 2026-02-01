@@ -23,15 +23,19 @@ func NewServer(ctx context.Context) (*Server, error) {
 	}
 
 	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
-	// Preview models require global endpoint for both model and session service
-	location := "global"
+	// Session Service requires regional endpoint (us-central1)
+	// Note: Model calls use global endpoint, configured separately in agent/photo_coach.go
+	sessionLocation := os.Getenv("GOOGLE_CLOUD_LOCATION")
+	if sessionLocation == "" {
+		sessionLocation = "us-central1"
+	}
 	agentEngineID := os.Getenv("AGENT_ENGINE_ID")
 
 	var sessionService session.Service
-	if projectID != "" && location != "" && agentEngineID != "" {
+	if projectID != "" && sessionLocation != "" && agentEngineID != "" {
 		sessionService, err = vertexai.NewSessionService(ctx, vertexai.VertexAIServiceConfig{
 			ProjectID:       projectID,
-			Location:        location,
+			Location:        sessionLocation,
 			ReasoningEngine: agentEngineID,
 		})
 		if err != nil {
