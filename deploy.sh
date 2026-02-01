@@ -32,7 +32,7 @@ gcloud run deploy ${SERVICE_NAME} \
   --region ${REGION} \
   --platform managed \
   --allow-unauthenticated \
-  --set-env-vars=GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=global,BUCKET_NAME=photo-coach,VERTEXAI_LLM=gemini-3-flash-preview,VERTEXAI_IMAGE_MODEL=gemini-3-pro-image-preview,GOOGLE_GENAI_USE_VERTEXAI=TRUE
+  --set-env-vars=GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=us-central1,AGENT_ENGINE_ID=7761957256307933184,BUCKET_NAME=photo-coach,VERTEXAI_LLM=gemini-3-flash-preview,VERTEXAI_IMAGE_MODEL=gemini-3-pro-image-preview,GOOGLE_GENAI_USE_VERTEXAI=TRUE
 
 echo "Running Artifact Registry cleanup..."
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
