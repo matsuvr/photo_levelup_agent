@@ -55,6 +55,23 @@ export async function POST(request: Request) {
 		}
 
 		// Backend now returns { jobId, status } for async processing
+		// Validate response has required fields
+		if (!payload || typeof payload !== "object") {
+			secureLog.error("Analyze: Backend returned non-object payload", payload);
+			return NextResponse.json(
+				{ error: "Invalid backend response format" },
+				{ status: 502 },
+			);
+		}
+
+		if (!payload.jobId) {
+			secureLog.error("Analyze: Backend response missing jobId", payload);
+			return NextResponse.json(
+				{ error: "Backend response missing required field: jobId" },
+				{ status: 502 },
+			);
+		}
+
 		return NextResponse.json(payload, { status: backendResponse.status });
 	} catch (error: unknown) {
 		const message = error instanceof Error ? error.message : String(error);
