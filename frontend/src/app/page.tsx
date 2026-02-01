@@ -254,9 +254,27 @@ export default function Home() {
 			});
 
 			if (!submitResponse.ok) {
-				const payload = await submitResponse.json().catch(() => null);
-				const message = payload?.error ?? "アップロードに失敗しました。";
-				addLocalMessage({ role: "agent", content: `**エラー:** ${message}` });
+				const contentType = submitResponse.headers.get("content-type") || "";
+				let message: string;
+
+				if (contentType.includes("application/json")) {
+					const payload = await submitResponse.json().catch(() => null);
+					message = payload?.error ?? "アップロードに失敗しました。";
+				} else {
+					// Not JSON - might be plain text error or HTML
+					const text = await submitResponse.text().catch(() => "");
+					message = text || "アップロードに失敗しました。";
+				}
+
+				// Include HTTP status code for debugging
+				const statusInfo = `(HTTP ${submitResponse.status})`;
+				addLocalMessage({
+					role: "agent",
+					content: `**エラー ${statusInfo}:** ${message}`,
+				});
+				secureLog.error(
+					`API Error: status=${submitResponse.status}, contentType=${contentType}, message=${message}`,
+				);
 				return;
 			}
 

@@ -1,7 +1,7 @@
 {
 	"apphosting": {
 		"backendId": "photo-coach-backend",
-		"rootDir": "/",
+		"rootDir": ".",
 		"ignore": [
 			"node_modules",
 			".git",
@@ -12,12 +12,5 @@
 	},
 	"storage": {
 		"rules": "storage.rules"
-	},
-	"hosting": {
-		"source": ".",
-		"ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-		"frameworksBackend": {
-			"region": "asia-northeast1"
-		}
 	}
 }

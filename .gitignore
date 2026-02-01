@@ -92,3 +92,6 @@ gcp-key.json
 .commandcode/
 .codebuddy/
 .cline/
+
+# Deployment docs (confidential)
+backend/DEPLOY_MANUAL.md
