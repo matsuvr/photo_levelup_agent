@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"os"
 
 	"google.golang.org/adk/agent"
@@ -39,22 +40,18 @@ const systemInstruction = `あなたは写真指導の専門家AIアシスタン
 `
 
 func NewPhotoCoachAgent(ctx context.Context) (agent.Agent, error) {
-	modelName := os.Getenv("VERTEXAI_LLM")
-	project := os.Getenv("GOOGLE_CLOUD_PROJECT")
-	// Preview models require global endpoint
-	location := "global"
+	modelName := os.Getenv("GEMINI_MODEL")
 	if modelName == "" {
-		modelName = "gemini-3-pro-preview"
+		modelName = "gemini-3-flash-preview"
 	}
-
-	if err := os.Setenv("GOOGLE_GENAI_USE_VERTEXAI", "true"); err != nil {
-		return nil, err
+	apiKey := os.Getenv("GOOGLE_API_KEY")
+	if apiKey == "" {
+		return nil, errors.New("GOOGLE_API_KEY is required")
 	}
 
 	model, err := gemini.NewModel(ctx, modelName, &genai.ClientConfig{
-		Project:  project,
-		Location: location,
-		Backend:  genai.BackendVertexAI,
+		APIKey:  apiKey,
+		Backend: genai.BackendGeminiAPI,
 	})
 	if err != nil {
 		return nil, err

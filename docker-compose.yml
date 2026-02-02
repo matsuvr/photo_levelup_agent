@@ -8,3 +8,10 @@ services:
       - "8080:8080"
     environment:
       PORT: "8080"
+      GOOGLE_API_KEY: "${GOOGLE_API_KEY}"
+      GEMINI_MODEL: "${GEMINI_MODEL:-gemini-3-flash-preview}"
+      BUCKET_NAME: "${BUCKET_NAME}"
+      # Leave these empty for local testing to use InMemoryService
+      # GOOGLE_CLOUD_PROJECT: ""
+      # GOOGLE_CLOUD_LOCATION: ""
+      # AGENT_ENGINE_ID: ""

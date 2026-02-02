@@ -16,6 +16,7 @@ import (
 type chatRequest struct {
 	SessionID string `json:"sessionId"`
 	Message   string `json:"message"`
+	ImageURL  string `json:"imageUrl,omitempty"`
 }
 
 type chatResponse struct {
@@ -50,7 +51,7 @@ func (h *ChatHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
-	reply, err := chatWithAgent(ctx, h.deps, req.SessionID, req.Message)
+	reply, err := chatWithAgent(ctx, h.deps, req.SessionID, req.Message, req.ImageURL)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -59,7 +60,7 @@ func (h *ChatHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, chatResponse{Reply: reply})
 }
 
-func chatWithAgent(ctx context.Context, deps *Dependencies, sessionID, message string) (string, error) {
+func chatWithAgent(ctx context.Context, deps *Dependencies, sessionID, message, imageURL string) (string, error) {
 	runner, err := runner.New(runner.Config{
 		AppName:        "photo_levelup",
 		Agent:          deps.Agent,
@@ -74,7 +75,17 @@ func chatWithAgent(ctx context.Context, deps *Dependencies, sessionID, message s
 		return "", err
 	}
 
-	content := genai.NewContentFromText(message, genai.RoleUser)
+	var content *genai.Content
+	if imageURL != "" {
+		// Include image with message
+		parts := []*genai.Part{
+			genai.NewPartFromText(message),
+			genai.NewPartFromURI(imageURL, "image/jpeg"),
+		}
+		content = genai.NewContentFromParts(parts, genai.RoleUser)
+	} else {
+		content = genai.NewContentFromText(message, genai.RoleUser)
+	}
 	for event, err := range runner.Run(ctx, sessionID, resolvedSessionID, content, agent.RunConfig{}) {
 		if err != nil {
 			return "", err

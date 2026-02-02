@@ -34,5 +34,5 @@ jobs:
             --region asia-northeast1 \
             --project ai-agent-hackathon-vol \
             --allow-unauthenticated \
-            --set-env-vars "GOOGLE_CLOUD_PROJECT=ai-agent-hackathon-vol,GOOGLE_CLOUD_LOCATION=us-central1,AGENT_ENGINE_ID=7761957256307933184,BUCKET_NAME=photo-coach,VERTEXAI_LLM=gemini-3-flash-preview,VERTEXAI_IMAGE_MODEL=gemini-3-pro-image-preview,GOOGLE_GENAI_USE_VERTEXAI=TRUE" \
+            --set-env-vars "GOOGLE_CLOUD_PROJECT=ai-agent-hackathon-vol,GOOGLE_CLOUD_LOCATION=us-central1,AGENT_ENGINE_ID=7761957256307933184,BUCKET_NAME=photo-coach" \
             --quiet
