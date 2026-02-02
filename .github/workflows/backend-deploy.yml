@@ -34,5 +34,5 @@ jobs:
             --region asia-northeast1 \
             --project ai-agent-hackathon-vol \
             --allow-unauthenticated \
-            --set-env-vars "GOOGLE_CLOUD_PROJECT=ai-agent-hackathon-vol,GOOGLE_CLOUD_LOCATION=us-central1,AGENT_ENGINE_ID=7761957256307933184,BUCKET_NAME=photo-coach" \
+            --set-env-vars "GOOGLE_CLOUD_PROJECT=ai-agent-hackathon-vol,GOOGLE_CLOUD_LOCATION=us-central1,AGENT_ENGINE_ID=7761957256307933184,BUCKET_NAME=photo-coach,GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}" \
             --quiet
