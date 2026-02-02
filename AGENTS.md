@@ -4,6 +4,8 @@ This document outlines the mandatory rules and best practices for the AI agent w
 
 gemini-3-pro-image-preview, gemini-3-flash-preview はすでにリリースされているモデルです。勝手にモデル名を書き換えないように！！！！
 
+GoバックエンドがGeminiとやりとりするときは[Google Gen AI Go SDK](https://pkg.go.dev/google.golang.org/genai#section-readme)を用いること。Generative ai sdkはすでに更新されなくなったものなので使わないこと！
+
 ## 1. Technology Stack & Tools
 - **TypeScript Linting/Formatting**: Use **Biome** explicitly. **Do NOT use ESLint**.
 - **TypeScript Types**: Enforce strict typing.
@@ -26,4 +28,4 @@ gemini-3-pro-image-preview, gemini-3-flash-preview はすでにリリースさ�
 - **Reliability vs. Efficiency**:
   - Service downtime caused by deployment failures is clear and acceptable.
   - **Priority**: Do NOT write wasteful code or consume resources for the sake of redundancy, high availability, or continuity.
-  - **Cost**: This is a hobby project; minimize resource consumption and cost. Avoid over-engineering. コンテナレジストリにはGithubを利用し、GoogleのArtifactは使わないこと
+  - **Cost**: This is a hobby project; minimize resource consumption and cost. Avoid over-engineering.

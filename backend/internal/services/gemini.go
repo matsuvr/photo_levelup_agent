@@ -56,17 +56,14 @@ func (g *GeminiClient) Ensure(ctx context.Context) error {
 		return nil
 	}
 
-	if err := os.Setenv("GOOGLE_GENAI_USE_VERTEXAI", "true"); err != nil {
-		return err
+	apiKey := strings.TrimSpace(os.Getenv("GOOGLE_API_KEY"))
+	if apiKey == "" {
+		return errors.New("GOOGLE_API_KEY is required")
 	}
 
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
-		Project:  os.Getenv("GOOGLE_CLOUD_PROJECT"),
-		Location: resolveLocation(),
-		Backend:  genai.BackendVertexAI,
-		HTTPOptions: genai.HTTPOptions{
-			APIVersion: "v1",
-		},
+		APIKey:  apiKey,
+		Backend: genai.BackendGeminiAPI,
 	})
 	if err != nil {
 		return err
@@ -301,16 +298,11 @@ func buildCategoryLines(categories []categorySummary) []string {
 	return lines
 }
 
-func resolveLocation() string {
-	// Preview models require global endpoint
-	return "global"
-}
-
 func modelName() string {
-	if name := os.Getenv("VERTEXAI_LLM"); name != "" {
+	if name := os.Getenv("GEMINI_MODEL"); name != "" {
 		return name
 	}
-	return "gemini-3-pro-preview"
+	return "gemini-3-flash-preview"
 }
 
 func analysisResponseSchema() *genai.Schema {
