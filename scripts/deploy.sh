@@ -16,6 +16,20 @@ echo "----------------------------------------------------------"
 # Ensure we are in the project root
 cd "$(dirname "$0")/.."
 
+# Load environment variables from .env if it exists
+if [ -f .env ]; then
+    echo "📄 Loading local .env file..."
+    export $(grep -v '^#' .env | xargs)
+fi
+
+# Check for required GOOGLE_API_KEY
+if [ -z "$GOOGLE_API_KEY" ]; then
+    echo "❌ Error: GOOGLE_API_KEY is not set."
+    echo "Please set it in your environment or in a .env file at the project root."
+    echo "Example: export GOOGLE_API_KEY=your_key_here"
+    exit 1
+fi
+
 # 1. Deploy Backend (Cloud Run)
 echo ""
 echo "Step 1: Deploying Backend (Go) directly to Cloud Run..."
@@ -25,6 +39,7 @@ gcloud run deploy "$BACKEND_SERVICE_NAME" \
     --region "$REGION" \
     --project "$PROJECT_ID" \
     --allow-unauthenticated \
+    --set-env-vars "GOOGLE_API_KEY=$GOOGLE_API_KEY" \
     --quiet
 
 # Get and show the backend URL
