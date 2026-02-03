@@ -46,9 +46,9 @@
           │                │                │                │
           ▼                ▼                ▼                ▼
 ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-│  Vertex AI   │  │ Vertex AI    │  │ Cloud        │  │ Vertex AI    │
-│  (Vision)    │  │ Nano Banana  │  │ Storage      │  │ Agent Engine │
-│              │  │ Pro          │  │              │  │ (Session/    │
+│ Google AI    │  │ Google AI    │  │ Cloud        │  │ Vertex AI    │
+│ Studio       │  │ Studio       │  │ Storage      │  │ Agent Engine │
+│ (Vision)     │  │ (Nano Banana)│  │              │  │ (Session/    │
 │              │  │              │  │              │  │  Memory)     │
 └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘
 ```
@@ -82,8 +82,8 @@ photo-coach/
 │   │   ├── transform.go         # 写真変換ツール (Nano Banana Pro)
 │   │   └── compare.go           # 比較・アドバイスツール
 │   ├── services/
-│   │   ├── gemini.go            # Gemini Client (Vertex AI)
-│   │   ├── nanobanana.go        # Nano Banana Pro クライアント
+│   │   ├── gemini.go            # Gemini Client (Google AI Studio)
+│   │   ├── nanobanana.go        # Nano Banana Pro クライアント (Google AI Studio)
 │   │   └── storage.go           # Cloud Storage クライアント
 │   └── api/
 │       └── handlers.go          # HTTP ハンドラ (画像アップロード等)
@@ -281,11 +281,10 @@ const systemInstruction = `あなたは写真指導の専門家AIアシスタン
 `
 
 func NewAgent(ctx context.Context) (*llmagent.LLMAgent, error) {
-	// Gemini モデルの初期化 (Vertex AI)
-	model, err := gemini.NewModel(ctx, "gemini-3-pro-preview", &genai.ClientConfig{
-		Project:  os.Getenv("PROJECT_ID"),
-		Location: os.Getenv("LOCATION"),
-		Backend:  genai.BackendVertexAI,
+	// Gemini モデルの初期化 (Google AI Studio)
+	model, err := gemini.NewModel(ctx, "gemini-2.0-flash-exp", &genai.ClientConfig{
+		APIKey:  os.Getenv("GEMINI_API_KEY"),
+		Backend: genai.BackendGoogleAI,
 	})
 	if err != nil {
 		return nil, err
@@ -360,7 +359,7 @@ type CategoryAnalysis struct {
 func analyzePhoto(tc tool.Context, args AnalyzePhotoArgs) (*AnalysisResult, error) {
 	ctx := context.Background()
 
-	// Vertex AI Vision で分析
+	// Google AI Studio (Vision) で分析
 	geminiClient := services.NewGeminiClient()
 	result, err := geminiClient.AnalyzeImage(ctx, args.ImageURL)
 	if err != nil {
@@ -570,9 +569,8 @@ func NewNanoBananaClient() *NanoBananaClient {
 	ctx := context.Background()
 
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
-		Project:  os.Getenv("PROJECT_ID"),
-		Location: os.Getenv("LOCATION"),
-		Backend:  genai.BackendVertexAI,
+		APIKey:  os.Getenv("GEMINI_API_KEY"),
+		Backend: genai.BackendGoogleAI,
 	})
 	if err != nil {
 		panic(err)
@@ -925,6 +923,10 @@ resource "google_cloud_run_v2_service" "photo_coach" {
       env {
         name  = "LOCATION"
         value = var.region
+      }
+      env {
+        name  = "GEMINI_API_KEY"
+        value = var.gemini_api_key
       }
       env {
         name  = "BUCKET_NAME"
