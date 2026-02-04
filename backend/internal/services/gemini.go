@@ -9,7 +9,9 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
+	"cloud.google.com/go/storage"
 	"google.golang.org/genai"
 )
 
@@ -74,11 +76,55 @@ func (g *GeminiClient) Ensure(ctx context.Context) error {
 	return nil
 }
 
+// convertToSignedURL converts gs:// URL to a signed HTTPS URL for Gemini API access
+func convertToSignedURL(ctx context.Context, gcsURL string) (string, error) {
+	if !strings.HasPrefix(gcsURL, "gs://") {
+		// Already an HTTPS URL or other format, return as-is
+		return gcsURL, nil
+	}
+
+	trimmed := strings.TrimPrefix(gcsURL, "gs://")
+	parts := strings.SplitN(trimmed, "/", 2)
+	if len(parts) != 2 {
+		return "", fmt.Errorf("invalid GCS URL format: %s", gcsURL)
+	}
+
+	bucketName := parts[0]
+	objectName := parts[1]
+
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to create storage client: %w", err)
+	}
+	defer client.Close()
+
+	opts := &storage.SignedURLOptions{
+		Method:  "GET",
+		Expires: time.Now().Add(1 * time.Hour),
+	}
+
+	signedURL, err := client.Bucket(bucketName).SignedURL(objectName, opts)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate signed URL: %w", err)
+	}
+
+	log.Printf("DEBUG: Converted %s to signed URL", gcsURL)
+	return signedURL, nil
+}
+
 func (g *GeminiClient) AnalyzeImage(ctx context.Context, imageURL string) (*AnalysisResult, error) {
 	log.Printf("DEBUG: AnalyzeImage called with URL: %s", imageURL)
 	if err := g.Ensure(ctx); err != nil {
 		return nil, err
 	}
+
+	// Convert gs:// URL to signed URL for Gemini API access
+	signedURL, err := convertToSignedURL(ctx, imageURL)
+	if err != nil {
+		log.Printf("ERROR: Failed to convert to signed URL: %v", err)
+		return nil, fmt.Errorf("failed to convert image URL: %w", err)
+	}
+	log.Printf("DEBUG: Using signed URL for analysis")
 
 	analysisPrompt := strings.Join([]string{
 		"あなたは写真講評のプロです。次の写真を詳細に評価してください。",
@@ -90,7 +136,7 @@ func (g *GeminiClient) AnalyzeImage(ctx context.Context, imageURL string) (*Anal
 	contents := []*genai.Content{
 		genai.NewContentFromParts([]*genai.Part{
 			genai.NewPartFromText(analysisPrompt),
-			genai.NewPartFromURI(imageURL, "image/jpeg"),
+			genai.NewPartFromURI(signedURL, "image/jpeg"),
 		}, genai.RoleUser),
 	}
 
@@ -125,6 +171,18 @@ func (g *GeminiClient) CompareAndAdvise(ctx context.Context, originalURL, transf
 		return "", err
 	}
 
+	// Convert gs:// URLs to signed URLs
+	signedOriginalURL, err := convertToSignedURL(ctx, originalURL)
+	if err != nil {
+		log.Printf("ERROR: Failed to convert original URL to signed URL: %v", err)
+		return "", fmt.Errorf("failed to convert original image URL: %w", err)
+	}
+	signedTransformedURL, err := convertToSignedURL(ctx, transformedURL)
+	if err != nil {
+		log.Printf("ERROR: Failed to convert transformed URL to signed URL: %v", err)
+		return "", fmt.Errorf("failed to convert transformed image URL: %w", err)
+	}
+
 	analysisText := analysisJSON
 	if analysisJSON != "" {
 		var parsed AnalysisResult
@@ -137,8 +195,8 @@ func (g *GeminiClient) CompareAndAdvise(ctx context.Context, originalURL, transf
 	contents := []*genai.Content{
 		genai.NewContentFromParts([]*genai.Part{
 			genai.NewPartFromText(prompt),
-			genai.NewPartFromURI(originalURL, "image/jpeg"),
-			genai.NewPartFromURI(transformedURL, "image/jpeg"),
+			genai.NewPartFromURI(signedOriginalURL, "image/jpeg"),
+			genai.NewPartFromURI(signedTransformedURL, "image/jpeg"),
 		}, genai.RoleUser),
 	}
 
@@ -194,12 +252,19 @@ func (g *GeminiClient) EnhancePhoto(ctx context.Context, input EnhancementInput)
 		return nil, errors.New("image url is required")
 	}
 
+	// Convert gs:// URL to signed URL
+	signedURL, err := convertToSignedURL(ctx, input.ImageURL)
+	if err != nil {
+		log.Printf("ERROR: Failed to convert URL to signed URL in EnhancePhoto: %v", err)
+		return nil, fmt.Errorf("failed to convert image URL: %w", err)
+	}
+
 	prompt := buildEnhancementPrompt(input)
 	config := &genai.GenerateContentConfig{ResponseModalities: []string{"IMAGE", "TEXT"}}
 	contents := []*genai.Content{
 		genai.NewContentFromParts([]*genai.Part{
 			genai.NewPartFromText(prompt),
-			genai.NewPartFromURI(input.ImageURL, "image/jpeg"),
+			genai.NewPartFromURI(signedURL, "image/jpeg"),
 		}, genai.RoleUser),
 	}
 	response, err := g.client.Models.GenerateContent(ctx, "gemini-3-pro-image-preview", contents, config)
