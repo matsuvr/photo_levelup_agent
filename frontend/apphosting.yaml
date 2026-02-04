@@ -10,7 +10,7 @@ runConfig:
 # Environment variables and secrets.
 env:
   - variable: BACKEND_BASE_URL
-    value: https://photo-coach-api-5ljl72v6pa-uc.a.run.app
+    value: https://photo-coach-api-483846571887.us-central1.run.app
     availability:
       - BUILD
       - RUNTIME
