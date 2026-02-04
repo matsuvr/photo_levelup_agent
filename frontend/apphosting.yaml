@@ -12,7 +12,7 @@ runConfig:
 # To set secrets, run: firebase apphosting:secrets:set <SECRET_NAME>
 env:
   - variable: BACKEND_BASE_URL
-    value: https://photo-coach-api-483846571887.us-central1.run.app
+    value: https://photo-coach-api-5ljl72v6pa-uc.a.run.app
     availability:
       - BUILD
       - RUNTIME
