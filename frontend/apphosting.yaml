@@ -41,14 +41,14 @@ env:
 
   # Firebase API Key - stored in Secret Manager
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
-    secret: FIREBASE_API_KEY
+    secret: WEB_API_KEY
     availability:
       - BUILD
       - RUNTIME
 
   # Firebase App ID - stored in Secret Manager
   - variable: NEXT_PUBLIC_FIREBASE_APP_ID
-    secret: FIREBASE_APP_ID
+    secret: WEB_APP_ID
     availability:
       - BUILD
       - RUNTIME
