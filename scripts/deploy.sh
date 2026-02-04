@@ -82,6 +82,43 @@ show_status() {
     echo ""
 }
 
+# Build environment variables string from .env file (excluding .env.local)
+# IMPORTANT: Never include .env.local contents - those are local-only secrets
+build_env_vars() {
+    local env_vars=""
+    local separator=""
+
+    if [ ! -f "$PROJECT_ROOT/.env" ]; then
+        error ".env file not found at $PROJECT_ROOT/.env"
+        exit 1
+    fi
+
+    # Read .env file and build env vars string
+    # Skip comments, empty lines, and GOOGLE_APPLICATION_CREDENTIALS (local path)
+    while IFS='=' read -r key value || [ -n "$key" ]; do
+        # Skip empty lines and comments
+        [[ -z "$key" || "$key" =~ ^[[:space:]]*# ]] && continue
+
+        # Trim whitespace
+        key=$(echo "$key" | xargs)
+
+        # Skip GOOGLE_APPLICATION_CREDENTIALS (local path, not needed in Cloud Run)
+        [[ "$key" == "GOOGLE_APPLICATION_CREDENTIALS" ]] && continue
+
+        # Skip empty keys
+        [[ -z "$key" ]] && continue
+
+        # Remove surrounding quotes from value if present
+        value=$(echo "$value" | sed 's/^["'\'']\(.*\)["'\'']$/\1/')
+
+        # Add to env vars string (don't echo the actual values for security)
+        env_vars="${env_vars}${separator}${key}=${value}"
+        separator=","
+    done < "$PROJECT_ROOT/.env"
+
+    echo "$env_vars"
+}
+
 # Deploy backend (Go API) to Cloud Run
 deploy_backend() {
     echo ""
@@ -93,16 +130,34 @@ deploy_backend() {
     load_env
     check_env
 
+    info "Building environment variables from .env file..."
+    info "Note: .env.local is NEVER included (local-only secrets)"
+
+    # Build env vars string (output is not logged to avoid exposing secrets)
+    ENV_VARS=$(build_env_vars)
+
+    if [ -z "$ENV_VARS" ]; then
+        error "No environment variables found in .env file"
+        exit 1
+    fi
+
+    # Show which keys are being set (not values, for security)
+    info "Environment variables being set:"
+    grep -v '^\s*#' "$PROJECT_ROOT/.env" | grep -v '^\s*$' | grep -v 'GOOGLE_APPLICATION_CREDENTIALS' | cut -d'=' -f1 | while read key; do
+        [ -n "$key" ] && echo "  - $key"
+    done
+
     info "Deploying $BACKEND_API_SERVICE to $BACKEND_REGION..."
     cd "$PROJECT_ROOT/backend"
 
+    # Deploy with all env vars from .env (secrets are not logged)
     gcloud run deploy "$BACKEND_API_SERVICE" \
         --source . \
         --region "$BACKEND_REGION" \
         --project "$PROJECT_ID" \
         --allow-unauthenticated \
-        --set-env-vars "GOOGLE_API_KEY=$GOOGLE_API_KEY" \
-        --quiet
+        --set-env-vars "$ENV_VARS" \
+        --quiet 2>&1 | grep -v -E "(GOOGLE_API_KEY|GEMINI_API_KEY|API_KEY)" || true
 
     BACKEND_URL=$(gcloud run services describe "$BACKEND_API_SERVICE" \
         --region "$BACKEND_REGION" \
