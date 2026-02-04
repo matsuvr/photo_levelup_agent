@@ -6,10 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"strings"
-	"time"
 
 	"cloud.google.com/go/storage"
 	"google.golang.org/genai"
@@ -76,17 +77,23 @@ func (g *GeminiClient) Ensure(ctx context.Context) error {
 	return nil
 }
 
-// convertToSignedURL converts gs:// URL to a signed HTTPS URL for Gemini API access
-func convertToSignedURL(ctx context.Context, gcsURL string) (string, error) {
-	if !strings.HasPrefix(gcsURL, "gs://") {
-		// Already an HTTPS URL or other format, return as-is
-		return gcsURL, nil
+// fetchImageBytes fetches image data from GCS URL or HTTP URL and returns the bytes
+func fetchImageBytes(ctx context.Context, imageURL string) ([]byte, string, error) {
+	if strings.HasPrefix(imageURL, "gs://") {
+		return fetchFromGCS(ctx, imageURL)
 	}
+	if strings.HasPrefix(imageURL, "http://") || strings.HasPrefix(imageURL, "https://") {
+		return fetchFromHTTP(ctx, imageURL)
+	}
+	return nil, "", fmt.Errorf("unsupported URL format: %s", imageURL)
+}
 
+// fetchFromGCS fetches image data directly from Google Cloud Storage
+func fetchFromGCS(ctx context.Context, gcsURL string) ([]byte, string, error) {
 	trimmed := strings.TrimPrefix(gcsURL, "gs://")
 	parts := strings.SplitN(trimmed, "/", 2)
 	if len(parts) != 2 {
-		return "", fmt.Errorf("invalid GCS URL format: %s", gcsURL)
+		return nil, "", fmt.Errorf("invalid GCS URL format: %s", gcsURL)
 	}
 
 	bucketName := parts[0]
@@ -94,22 +101,75 @@ func convertToSignedURL(ctx context.Context, gcsURL string) (string, error) {
 
 	client, err := storage.NewClient(ctx)
 	if err != nil {
-		return "", fmt.Errorf("failed to create storage client: %w", err)
+		return nil, "", fmt.Errorf("failed to create storage client: %w", err)
 	}
 	defer client.Close()
 
-	opts := &storage.SignedURLOptions{
-		Method:  "GET",
-		Expires: time.Now().Add(1 * time.Hour),
-	}
-
-	signedURL, err := client.Bucket(bucketName).SignedURL(objectName, opts)
+	reader, err := client.Bucket(bucketName).Object(objectName).NewReader(ctx)
 	if err != nil {
-		return "", fmt.Errorf("failed to generate signed URL: %w", err)
+		return nil, "", fmt.Errorf("failed to read GCS object: %w", err)
+	}
+	defer reader.Close()
+
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to read image data: %w", err)
 	}
 
-	log.Printf("DEBUG: Converted %s to signed URL", gcsURL)
-	return signedURL, nil
+	// Detect MIME type from content type or default to image/jpeg
+	mimeType := reader.Attrs.ContentType
+	if mimeType == "" {
+		mimeType = detectMimeType(objectName)
+	}
+
+	log.Printf("DEBUG: Fetched %d bytes from GCS: %s (mime: %s)", len(data), gcsURL, mimeType)
+	return data, mimeType, nil
+}
+
+// fetchFromHTTP fetches image data from HTTP/HTTPS URL
+func fetchFromHTTP(ctx context.Context, url string) ([]byte, string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to fetch image: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, "", fmt.Errorf("failed to fetch image: status %d", resp.StatusCode)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to read image data: %w", err)
+	}
+
+	mimeType := resp.Header.Get("Content-Type")
+	if mimeType == "" {
+		mimeType = detectMimeType(url)
+	}
+
+	log.Printf("DEBUG: Fetched %d bytes from HTTP: %s (mime: %s)", len(data), url, mimeType)
+	return data, mimeType, nil
+}
+
+// detectMimeType detects MIME type from file extension
+func detectMimeType(path string) string {
+	lower := strings.ToLower(path)
+	switch {
+	case strings.HasSuffix(lower, ".png"):
+		return "image/png"
+	case strings.HasSuffix(lower, ".gif"):
+		return "image/gif"
+	case strings.HasSuffix(lower, ".webp"):
+		return "image/webp"
+	default:
+		return "image/jpeg"
+	}
 }
 
 func (g *GeminiClient) AnalyzeImage(ctx context.Context, imageURL string) (*AnalysisResult, error) {
@@ -118,13 +178,13 @@ func (g *GeminiClient) AnalyzeImage(ctx context.Context, imageURL string) (*Anal
 		return nil, err
 	}
 
-	// Convert gs:// URL to signed URL for Gemini API access
-	signedURL, err := convertToSignedURL(ctx, imageURL)
+	// Fetch image data directly instead of using signed URL
+	imageData, mimeType, err := fetchImageBytes(ctx, imageURL)
 	if err != nil {
-		log.Printf("ERROR: Failed to convert to signed URL: %v", err)
-		return nil, fmt.Errorf("failed to convert image URL: %w", err)
+		log.Printf("ERROR: Failed to fetch image data: %v", err)
+		return nil, fmt.Errorf("failed to fetch image: %w", err)
 	}
-	log.Printf("DEBUG: Using signed URL for analysis")
+	log.Printf("DEBUG: Fetched image data (%d bytes, %s) for analysis", len(imageData), mimeType)
 
 	analysisPrompt := strings.Join([]string{
 		"あなたは写真講評のプロです。次の写真を詳細に評価してください。",
@@ -136,7 +196,7 @@ func (g *GeminiClient) AnalyzeImage(ctx context.Context, imageURL string) (*Anal
 	contents := []*genai.Content{
 		genai.NewContentFromParts([]*genai.Part{
 			genai.NewPartFromText(analysisPrompt),
-			genai.NewPartFromURI(signedURL, "image/jpeg"),
+			genai.NewPartFromBytes(imageData, mimeType),
 		}, genai.RoleUser),
 	}
 
@@ -171,16 +231,16 @@ func (g *GeminiClient) CompareAndAdvise(ctx context.Context, originalURL, transf
 		return "", err
 	}
 
-	// Convert gs:// URLs to signed URLs
-	signedOriginalURL, err := convertToSignedURL(ctx, originalURL)
+	// Fetch image data directly instead of using signed URLs
+	originalData, originalMime, err := fetchImageBytes(ctx, originalURL)
 	if err != nil {
-		log.Printf("ERROR: Failed to convert original URL to signed URL: %v", err)
-		return "", fmt.Errorf("failed to convert original image URL: %w", err)
+		log.Printf("ERROR: Failed to fetch original image: %v", err)
+		return "", fmt.Errorf("failed to fetch original image: %w", err)
 	}
-	signedTransformedURL, err := convertToSignedURL(ctx, transformedURL)
+	transformedData, transformedMime, err := fetchImageBytes(ctx, transformedURL)
 	if err != nil {
-		log.Printf("ERROR: Failed to convert transformed URL to signed URL: %v", err)
-		return "", fmt.Errorf("failed to convert transformed image URL: %w", err)
+		log.Printf("ERROR: Failed to fetch transformed image: %v", err)
+		return "", fmt.Errorf("failed to fetch transformed image: %w", err)
 	}
 
 	analysisText := analysisJSON
@@ -195,8 +255,8 @@ func (g *GeminiClient) CompareAndAdvise(ctx context.Context, originalURL, transf
 	contents := []*genai.Content{
 		genai.NewContentFromParts([]*genai.Part{
 			genai.NewPartFromText(prompt),
-			genai.NewPartFromURI(signedOriginalURL, "image/jpeg"),
-			genai.NewPartFromURI(signedTransformedURL, "image/jpeg"),
+			genai.NewPartFromBytes(originalData, originalMime),
+			genai.NewPartFromBytes(transformedData, transformedMime),
 		}, genai.RoleUser),
 	}
 
@@ -252,11 +312,11 @@ func (g *GeminiClient) EnhancePhoto(ctx context.Context, input EnhancementInput)
 		return nil, errors.New("image url is required")
 	}
 
-	// Convert gs:// URL to signed URL
-	signedURL, err := convertToSignedURL(ctx, input.ImageURL)
+	// Fetch image data directly instead of using signed URL
+	imageData, mimeType, err := fetchImageBytes(ctx, input.ImageURL)
 	if err != nil {
-		log.Printf("ERROR: Failed to convert URL to signed URL in EnhancePhoto: %v", err)
-		return nil, fmt.Errorf("failed to convert image URL: %w", err)
+		log.Printf("ERROR: Failed to fetch image in EnhancePhoto: %v", err)
+		return nil, fmt.Errorf("failed to fetch image: %w", err)
 	}
 
 	prompt := buildEnhancementPrompt(input)
@@ -264,7 +324,7 @@ func (g *GeminiClient) EnhancePhoto(ctx context.Context, input EnhancementInput)
 	contents := []*genai.Content{
 		genai.NewContentFromParts([]*genai.Part{
 			genai.NewPartFromText(prompt),
-			genai.NewPartFromURI(signedURL, "image/jpeg"),
+			genai.NewPartFromBytes(imageData, mimeType),
 		}, genai.RoleUser),
 	}
 	response, err := g.client.Models.GenerateContent(ctx, "gemini-3-pro-image-preview", contents, config)
