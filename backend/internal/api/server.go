@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -36,13 +35,11 @@ func NewServer(ctx context.Context) (*Server, error) {
 		// Use Vertex AI Session Service (Agent Engine) for production
 		log.Printf("Initializing Vertex AI Session Service for project: %s, location: %s, agent engine: %s", projectID, location, agentEngineID)
 
-		// Build the full reasoning engine resource name
-		reasoningEngine := fmt.Sprintf("projects/%s/locations/%s/reasoningEngines/%s", projectID, location, agentEngineID)
-
+		// Pass the engine ID directly - the ADK will construct the full resource name internally
 		sessionService, err = vertexai.NewSessionService(ctx, vertexai.VertexAIServiceConfig{
 			ProjectID:       projectID,
 			Location:        location,
-			ReasoningEngine: reasoningEngine,
+			ReasoningEngine: agentEngineID,
 		})
 		if err != nil {
 			log.Printf("Warning: Failed to create Vertex AI session service: %v. Falling back to Firestore.", err)
