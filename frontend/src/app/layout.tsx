@@ -3,8 +3,13 @@ import type { Metadata } from "next";
 import { AuthProvider } from "@/context/AuthContext";
 
 export const metadata: Metadata = {
-	title: "Photo Levelup Agent",
-	description: "写真の分析と改善アドバイスを提供するAIコーチ",
+	title: "Photo Coach | AI写真コーチング",
+	description:
+		"あなたの写真をAIが分析し、プロ級の仕上がりへ導く改善アドバイスを提案します。",
+	icons: {
+		icon: "/icon.png",
+		apple: "/icon.png",
+	},
 };
 
 export default function RootLayout({

@@ -198,7 +198,7 @@ func analyzeWithAgent(ctx context.Context, deps *Dependencies, sessionID string,
 		return nil, err
 	}
 
-	content := genai.NewContentFromText(fmt.Sprintf("次の写真を分析してください。URL: %s", imageURL), genai.RoleUser)
+	content := genai.NewContentFromText(fmt.Sprintf("analyze_photo ツールを使って次の写真を分析してください。画像URL: %s", imageURL), genai.RoleUser)
 	log.Printf("INFO: Starting agent run for session %s (resolved: %s)", sessionID, resolvedSessionID)
 	for event, err := range runner.Run(ctx, sessionID, resolvedSessionID, content, agent.RunConfig{}) {
 		if err != nil {
