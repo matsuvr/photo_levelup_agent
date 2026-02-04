@@ -1,7 +1,14 @@
 第4回 Agentic AI Hackathon with Google Cloud応募予定
 https://zenn.dev/hackathons/google-cloud-japan-ai-hackathon-vol4
 
-https://photo-coach-backend--ai-agent-hackathon-vol.us-central1.hosted.app/
+  Cloud Run (バックエンドAPI):
+  - サービス: photo-coach-api
+  - リージョン: us-central1
+  - URL: https://photo-coach-api-5ljl72v6pa-uc.a.run.app
+  App Hosting (フロントエンド):
+  - バックエンドID: photo-coach-frontend
+  - リージョン: us-central1
+  - URL: https://photo-coach-frontend--ai-hackathon-e04d2.us-central1.hosted.app/
 
 
 
