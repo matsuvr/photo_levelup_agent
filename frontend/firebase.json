@@ -1,6 +1,6 @@
 {
 	"apphosting": {
-		"backendId": "photo-coach-backend",
+		"backendId": "photo-coach-frontend",
 		"rootDir": ".",
 		"ignore": [
 			"node_modules",
