@@ -10,6 +10,16 @@ https://zenn.dev/hackathons/google-cloud-japan-ai-hackathon-vol4
   - リージョン: us-central1
   - URL: https://photo-coach-frontend--ai-hackathon-e04d2.us-central1.hosted.app/
 
+## Cloud Run 環境変数例（バックエンド）
+
+強化画像の返却URLを生成するため、バックエンドの Cloud Run に以下を設定します。
+
+```
+PUBLIC_BACKEND_BASE_URL=https://photo-coach-api-5ljl72v6pa-uc.a.run.app
+```
+
+※ `PUBLIC_BACKEND_BASE_URL` 未設定の場合は、リクエストの Host から自動生成します。
+
 
 
 # Photo Coach

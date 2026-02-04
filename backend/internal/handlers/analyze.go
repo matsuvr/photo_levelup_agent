@@ -9,6 +9,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
+	"os"
 	"strings"
 
 	"github.com/google/uuid"
@@ -70,8 +72,11 @@ func (h *AnalyzeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("INFO: Created job %s for session %s", jobID, sessionID)
 
+	// Build base URL for returning image proxy links
+	baseURL := resolveBaseURL(r)
+
 	// Start async processing
-	go h.processAnalysis(jobID, sessionID, imageData, contentType)
+	go h.processAnalysis(jobID, sessionID, imageData, contentType, baseURL)
 
 	// Return job ID immediately
 	writeJSON(w, http.StatusAccepted, map[string]string{
@@ -81,7 +86,7 @@ func (h *AnalyzeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // processAnalysis runs the analysis in background
-func (h *AnalyzeHandler) processAnalysis(jobID, sessionID string, imageData []byte, contentType string) {
+func (h *AnalyzeHandler) processAnalysis(jobID, sessionID string, imageData []byte, contentType string, baseURL string) {
 	jobStore := GetJobStore()
 	jobStore.SetProcessing(jobID)
 
@@ -122,7 +127,7 @@ func (h *AnalyzeHandler) processAnalysis(jobID, sessionID string, imageData []by
 	}
 
 	// Generate enhanced image
-	enhancedURL, err := generateEnhancedImage(ctx, storageClient, imageURL, analysis)
+	enhancedURL, err := generateEnhancedImage(ctx, storageClient, imageURL, analysis, baseURL)
 	if err != nil {
 		log.Printf("ERROR: Job %s - Failed to generate enhanced image: %v", jobID, err)
 		jobStore.SetFailed(jobID, err.Error())
@@ -230,6 +235,7 @@ func generateEnhancedImage(
 	storageClient *services.StorageClient,
 	imageURL string,
 	analysis *services.AnalysisResult,
+	baseURL string,
 ) (string, error) {
 	geminiClient := services.NewGeminiClient()
 	result, err := geminiClient.EnhancePhoto(ctx, services.EnhancementInput{
@@ -250,7 +256,7 @@ func generateEnhancedImage(
 		return "", err
 	}
 
-	return storageClient.SignedURL(ctx, objectName)
+	return buildImageProxyURL(baseURL, objectName)
 }
 
 func extractAnalysisFromState(
@@ -295,4 +301,37 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 
 func writeJSONError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]string{"error": message})
+}
+
+func resolveBaseURL(r *http.Request) string {
+	if envURL := strings.TrimSpace(os.Getenv("PUBLIC_BACKEND_BASE_URL")); envURL != "" {
+		return envURL
+	}
+	if envURL := strings.TrimSpace(os.Getenv("BACKEND_BASE_URL")); envURL != "" {
+		return envURL
+	}
+	proto := strings.TrimSpace(r.Header.Get("X-Forwarded-Proto"))
+	if proto == "" {
+		if r.TLS != nil {
+			proto = "https"
+		} else {
+			proto = "http"
+		}
+	}
+	host := strings.TrimSpace(r.Host)
+	if host == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s://%s", proto, host)
+}
+
+func buildImageProxyURL(baseURL string, objectName string) (string, error) {
+	if strings.TrimSpace(objectName) == "" {
+		return "", errors.New("object name is required")
+	}
+	escaped := url.QueryEscape(objectName)
+	if strings.TrimSpace(baseURL) == "" {
+		return "", errors.New("base url is required")
+	}
+	return fmt.Sprintf("%s/photo/image?object=%s", strings.TrimRight(baseURL, "/"), escaped), nil
 }

@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"strings"
-	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/google/uuid"
@@ -74,43 +73,6 @@ func (s *StorageClient) UploadImageWithPrefix(ctx context.Context, data []byte, 
 	return fmt.Sprintf("gs://%s/%s", s.bucketName, objectName), objectName, nil
 }
 
-func (s *StorageClient) SignedURL(ctx context.Context, objectName string) (string, error) {
-	if s.bucketName == "" {
-		return "", fmt.Errorf("BUCKET_NAME is required")
-	}
-	if strings.TrimSpace(objectName) == "" {
-		return "", fmt.Errorf("object name is required")
-	}
-
-	opts := &storage.SignedURLOptions{
-		Method:  "GET",
-		Expires: time.Now().Add(24 * time.Hour),
-	}
-
-	return s.client.Bucket(s.bucketName).SignedURL(objectName, opts)
-}
-
-func (s *StorageClient) SignedURLFromGCSURL(ctx context.Context, gcsURL string) (string, error) {
-	if s.bucketName == "" {
-		return "", fmt.Errorf("BUCKET_NAME is required")
-	}
-
-	trimmed := strings.TrimPrefix(gcsURL, "gs://")
-	if trimmed == gcsURL {
-		return "", fmt.Errorf("invalid gcs url")
-	}
-
-	parts := strings.SplitN(trimmed, "/", 2)
-	if len(parts) != 2 {
-		return "", fmt.Errorf("invalid gcs url")
-	}
-	if parts[0] != s.bucketName {
-		return "", fmt.Errorf("bucket mismatch")
-	}
-
-	return s.SignedURL(ctx, parts[1])
-}
-
 func (s *StorageClient) UploadFromReader(ctx context.Context, reader io.Reader, contentType string) (string, error) {
 	if s.bucketName == "" {
 		return "", fmt.Errorf("BUCKET_NAME is required")
@@ -129,4 +91,22 @@ func (s *StorageClient) UploadFromReader(ctx context.Context, reader io.Reader, 
 	}
 
 	return fmt.Sprintf("gs://%s/%s", s.bucketName, objectName), nil
+}
+
+func (s *StorageClient) OpenObject(ctx context.Context, objectName string) (*storage.Reader, string, int64, error) {
+	if s.bucketName == "" {
+		return nil, "", 0, fmt.Errorf("BUCKET_NAME is required")
+	}
+	if strings.TrimSpace(objectName) == "" {
+		return nil, "", 0, fmt.Errorf("object name is required")
+	}
+
+	reader, err := s.client.Bucket(s.bucketName).Object(objectName).NewReader(ctx)
+	if err != nil {
+		return nil, "", 0, err
+	}
+
+	contentType := reader.Attrs.ContentType
+	size := reader.Attrs.Size
+	return reader, contentType, size, nil
 }

@@ -785,15 +785,10 @@ func (h *UploadHandler) HandleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 署名付きURLを生成（フロントエンド表示用）
-	signedURL, _ := storage.SignedURL(h.bucketName, objectName, &storage.SignedURLOptions{
-		Method:  "GET",
-		Expires: time.Now().Add(24 * time.Hour),
-	})
-
+	baseURL := fmt.Sprintf("%s://%s", r.Header.Get("X-Forwarded-Proto"), r.Host)
 	response := map[string]string{
 		"image_url":  fmt.Sprintf("gs://%s/%s", h.bucketName, objectName),
-		"signed_url": signedURL,
+		"image_url_proxy": fmt.Sprintf("%s/photo/image?object=%s", baseURL, objectName),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -1007,4 +1002,3 @@ const followUp = await fetch(`/api/sessions/${session.id}/messages`, {
 | 本番デプロイ | - | Vertex AI Agent Engineと連携 |
 
 **結論**: ADKを使うことで、マルチターン会話・セッション管理・状態管理といった「面倒だが重要な部分」をフレームワークに任せ、写真分析・変換・アドバイス生成というコアロジックに集中できます。
-
