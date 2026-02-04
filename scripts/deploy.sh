@@ -21,9 +21,9 @@
 set -e
 
 # --- Configuration ---
-PROJECT_ID="ai-agent-hackathon-vol"
-BACKEND_REGION="asia-northeast1"      # Go API runs here (closer to Japan users)
-FRONTEND_REGION="us-central1"          # App Hosting only supports us-central1 currently
+PROJECT_ID="ai-hackathon-e04d2"
+BACKEND_REGION="us-central1"
+FRONTEND_REGION="us-central1"
 BACKEND_API_SERVICE="photo-coach-api"
 FRONTEND_BACKEND_ID="photo-coach-frontend"
 GITHUB_REPO="matsuvr/photo_levelup_agent"

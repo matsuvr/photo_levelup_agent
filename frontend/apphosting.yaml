@@ -10,37 +10,37 @@ runConfig:
 # Environment variables and secrets.
 env:
   - variable: BACKEND_BASE_URL
-    value: https://photo-coach-api-4vpb3dvmfq-an.a.run.app
+    value: https://photo-coach-api-5ljl72v6pa-uc.a.run.app
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
-    value: AIzaSyBlQsqVUiawGZaqm9N7C6o7WNCv07_ecq0
+    value: AIzaSyBJIKJpZQ7J_Bg644JXY07ta0rJvggMc1Y
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-    value: ai-agent-hackathon-vol.firebaseapp.com
+    value: ai-hackathon-e04d2.firebaseapp.com
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
-    value: ai-agent-hackathon-vol
+    value: ai-hackathon-e04d2
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-    value: ai-agent-hackathon-vol.firebasestorage.app
+    value: ai-hackathon-e04d2.firebasestorage.app
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-    value: 176014985412
+    value: "483846571887"
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_APP_ID
-    value: 1:176014985412:web:02f86dbfd5b04eabaea191
+    value: 1:483846571887:web:d041d4f9ef3173ccb5ca9a
     availability:
       - BUILD
       - RUNTIME
