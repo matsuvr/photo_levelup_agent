@@ -7,6 +7,13 @@ gcp-key.json
 .env*
 !.env.example
 
+# Log files - CRITICAL: May contain secrets, never commit
+*.log
+logs/
+*.log.*
+deploy.log
+deploy-*.log
+
 # Firebase - CRITICAL: Never commit debug logs or local configs
 firebase-debug.log
 firebase-debug.*.log
