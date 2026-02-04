@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 
 	"google.golang.org/adk/tool"
 	"google.golang.org/adk/tool/functiontool"
@@ -16,18 +17,22 @@ type AnalyzePhotoArgs struct {
 }
 
 func analyzePhoto(tc tool.Context, args AnalyzePhotoArgs) (*services.AnalysisResult, error) {
+	log.Printf("DEBUG: analyzePhoto tool called with args: %+v", args)
 	ctx := context.Background()
 	geminiClient := services.NewGeminiClient()
 	result, err := geminiClient.AnalyzeImage(ctx, args.ImageURL)
 	if err != nil {
+		log.Printf("ERROR: analyzePhoto tool failed: %v", err)
 		return nil, fmt.Errorf("画像分析に失敗しました: %w", err)
 	}
 
 	resultJSON, _ := json.Marshal(result)
 	if err := tc.State().Set("analysis_result", string(resultJSON)); err != nil {
+		log.Printf("ERROR: Failed to set analysis_result state: %v", err)
 		return nil, err
 	}
 	if err := tc.State().Set("original_image_url", args.ImageURL); err != nil {
+		log.Printf("ERROR: Failed to set original_image_url state: %v", err)
 		return nil, err
 	}
 

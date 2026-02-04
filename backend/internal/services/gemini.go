@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -74,6 +75,7 @@ func (g *GeminiClient) Ensure(ctx context.Context) error {
 }
 
 func (g *GeminiClient) AnalyzeImage(ctx context.Context, imageURL string) (*AnalysisResult, error) {
+	log.Printf("DEBUG: AnalyzeImage called with URL: %s", imageURL)
 	if err := g.Ensure(ctx); err != nil {
 		return nil, err
 	}
@@ -100,16 +102,19 @@ func (g *GeminiClient) AnalyzeImage(ctx context.Context, imageURL string) (*Anal
 		},
 	})
 	if err != nil {
+		log.Printf("ERROR: AnalyzeImage GenerateContent failed: %v", err)
 		return nil, err
 	}
 
 	text := strings.TrimSpace(response.Text())
 	if text == "" {
+		log.Printf("ERROR: AnalyzeImage returned empty response")
 		return nil, errors.New("empty analysis response")
 	}
 
 	var result AnalysisResult
 	if err := json.Unmarshal([]byte(text), &result); err != nil {
+		log.Printf("ERROR: AnalyzeImage JSON unmarshal failed: %v", err)
 		return nil, fmt.Errorf("analysis response parse failed: %w", err)
 	}
 	return &result, nil

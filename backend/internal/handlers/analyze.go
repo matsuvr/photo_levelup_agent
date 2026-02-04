@@ -199,15 +199,24 @@ func analyzeWithAgent(ctx context.Context, deps *Dependencies, sessionID string,
 	}
 
 	content := genai.NewContentFromText(fmt.Sprintf("次の写真を分析してください。URL: %s", imageURL), genai.RoleUser)
+	log.Printf("INFO: Starting agent run for session %s (resolved: %s)", sessionID, resolvedSessionID)
 	for event, err := range runner.Run(ctx, sessionID, resolvedSessionID, content, agent.RunConfig{}) {
 		if err != nil {
+			log.Printf("ERROR: Agent run error: %v", err)
 			return nil, err
 		}
+
+		log.Printf("DEBUG: Agent event received. IsFinal: %v", event.IsFinalResponse())
+		if event.Content != nil {
+			log.Printf("DEBUG: Agent content: %s", extractText(event.Content))
+		}
+
 		if event == nil || !event.IsFinalResponse() {
 			continue
 		}
 		analysis, err := extractAnalysisFromState(ctx, deps.SessionService, sessionID, resolvedSessionID)
 		if err != nil {
+			log.Printf("ERROR: Failed to extract analysis from state: %v", err)
 			return nil, err
 		}
 		return analysis, nil
@@ -261,10 +270,13 @@ func extractAnalysisFromState(
 
 	stored, err := response.Session.State().Get("analysis_result")
 	if err != nil {
+		// Log available keys for debugging
+		log.Printf("ERROR: analysis_result key not found in state. Error: %v", err)
 		return nil, err
 	}
 	value, ok := stored.(string)
 	if !ok || strings.TrimSpace(value) == "" {
+		log.Printf("ERROR: analysis_result is empty or invalid type: %T", stored)
 		return nil, errors.New("analysis_result is empty")
 	}
 
