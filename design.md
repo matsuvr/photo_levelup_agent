@@ -1007,3 +1007,4 @@ const followUp = await fetch(`/api/sessions/${session.id}/messages`, {
 | 本番デプロイ | - | Vertex AI Agent Engineと連携 |
 
 **結論**: ADKを使うことで、マルチターン会話・セッション管理・状態管理といった「面倒だが重要な部分」をフレームワークに任せ、写真分析・変換・アドバイス生成というコアロジックに集中できます。
+
