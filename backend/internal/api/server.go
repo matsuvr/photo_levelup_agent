@@ -2,14 +2,15 @@ package api
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"os"
 
 	"google.golang.org/adk/session"
-	"google.golang.org/adk/session/vertexai"
 
 	"github.com/matsuvr/photo_levelup_agent/backend/internal/agent"
 	"github.com/matsuvr/photo_levelup_agent/backend/internal/handlers"
+	firestoreSession "github.com/matsuvr/photo_levelup_agent/backend/internal/session"
 )
 
 type Server struct {
@@ -23,25 +24,21 @@ func NewServer(ctx context.Context) (*Server, error) {
 	}
 
 	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
-	// Session Service requires regional endpoint (us-central1)
-	// Note: Model calls use global endpoint, configured separately in agent/photo_coach.go
-	sessionLocation := os.Getenv("GOOGLE_CLOUD_LOCATION")
-	if sessionLocation == "" {
-		sessionLocation = "us-central1"
-	}
-	agentEngineID := os.Getenv("AGENT_ENGINE_ID")
 
 	var sessionService session.Service
-	if projectID != "" && sessionLocation != "" && agentEngineID != "" {
-		sessionService, err = vertexai.NewSessionService(ctx, vertexai.VertexAIServiceConfig{
-			ProjectID:       projectID,
-			Location:        sessionLocation,
-			ReasoningEngine: agentEngineID,
-		})
+
+	// Use Firestore for session persistence if project ID is available
+	if projectID != "" {
+		log.Printf("Initializing Firestore session service for project: %s", projectID)
+		sessionService, err = firestoreSession.NewFirestoreService(ctx, projectID)
 		if err != nil {
-			return nil, err
+			log.Printf("Warning: Failed to create Firestore session service: %v. Falling back to in-memory.", err)
+			sessionService = session.InMemoryService()
+		} else {
+			log.Println("Firestore session service initialized successfully")
 		}
 	} else {
+		log.Println("GOOGLE_CLOUD_PROJECT not set. Using in-memory session service.")
 		sessionService = session.InMemoryService()
 	}
 
