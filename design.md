@@ -38,19 +38,17 @@
 │  │  └────────────────────────────────────────────────────────────┘ │  │
 │  │                              │                                   │  │
 │  │  ┌────────────────────────────────────────────────────────────┐ │  │
-│  │  │  SessionService          │    MemoryService                │ │  │
-│  │  │  (Vertex AI Sessions)    │    (Vertex AI Memory Bank)      │ │  │
+│  │  │  SessionService (Firestore)                               │ │  │
 │  │  └────────────────────────────────────────────────────────────┘ │  │
 │  └──────────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────┘
-          │                │                │                │
-          ▼                ▼                ▼                ▼
-┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-│ Google AI    │  │ Google AI    │  │ Cloud        │  │ Vertex AI    │
-│ Studio       │  │ Studio       │  │ Storage      │  │ Agent Engine │
-│ (Vision)     │  │ (Nano Banana)│  │              │  │ (Session/    │
-│              │  │              │  │              │  │  Memory)     │
-└──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘
+          │                │                │
+          ▼                ▼                ▼
+┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+│ Google AI    │  │ Cloud        │  │ Cloud        │
+│ Studio       │  │ Storage      │  │ Firestore    │
+│ (Gemini)     │  │              │  │ (Sessions)   │
+└──────────────┘  └──────────────┘  └──────────────┘
 ```
 
 ---
@@ -60,8 +58,7 @@
 | 課題 | 素朴な実装 | ADK活用 |
 |------|-----------|---------|
 | マルチターン会話管理 | 自前で履歴保存・コンテキスト構築 | `SessionService`が自動管理 |
-| 会話履歴の永続化 | Firestore等に自前実装 | `VertexAiSessionService`で完結 |
-| 長期記憶（ユーザー傾向等） | 自前でベクトルDB構築 | `MemoryService`でセマンティック検索 |
+| 会話履歴の永続化 | Firestore等に自前実装 | `FirestoreSessionService`で完結 |
 | ツール呼び出しの制御 | LLMレスポンスのパース・実行を自前実装 | ADKが自動でツール実行・結果注入 |
 | 状態管理 | セッション間のデータ受け渡しを自前実装 | `session.State`で簡単に管理 |
 
@@ -179,36 +176,25 @@ import (
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/cmd/launcher"
 	"google.golang.org/adk/cmd/launcher/full"
-	"google.golang.org/adk/memory"
 	"google.golang.org/adk/session"
 
 	"photo-coach/internal/agent/photocoach"
+	firestoreSession "photo-coach/internal/session"
 )
 
 func main() {
 	ctx := context.Background()
 
-	// 本番環境では Vertex AI のサービスを使用
+	// Firestore Session Service を使用
 	var sessionService session.Service
-	var memoryService memory.Service
 
-	if os.Getenv("ENV") == "production" {
-		// Vertex AI Session Service (永続化)
-		sessionService = session.NewVertexAIService(
-			os.Getenv("PROJECT_ID"),
-			os.Getenv("LOCATION"),
-			os.Getenv("AGENT_ENGINE_ID"),
-		)
-		// Vertex AI Memory Bank Service (長期記憶)
-		memoryService = memory.NewVertexAIMemoryBankService(
-			os.Getenv("PROJECT_ID"),
-			os.Getenv("LOCATION"),
-			os.Getenv("AGENT_ENGINE_ID"),
-		)
+	projectID := os.Getenv("PROJECT_ID")
+	if projectID != "" {
+		// Firestore Session Service (永続化)
+		sessionService = firestoreSession.NewFirestoreService(ctx, projectID)
 	} else {
 		// 開発環境ではインメモリ
 		sessionService = session.InMemoryService()
-		memoryService = memory.InMemoryService()
 	}
 
 	// Photo Coach Agent を作成
@@ -221,7 +207,6 @@ func main() {
 	config := &launcher.Config{
 		AgentLoader:    agent.NewSingleLoader(photoCoachAgent),
 		SessionService: sessionService,
-		MemoryService:  memoryService,
 	}
 
 	// Web + API モードで起動
@@ -521,7 +506,7 @@ func compareAndAdvise(tc tool.Context, args CompareAndAdviseArgs) (*AdviceResult
 		return nil, fmt.Errorf("比較する画像がありません。先にanalyze_photoとtransform_photoを実行してください")
 	}
 
-	// Vertex AI で比較分析
+	// Gemini で比較分析
 	geminiClient := services.NewGeminiClient()
 	result, err := geminiClient.CompareAndGenerateAdvice(ctx, originalURL, transformedURL)
 	if err != nil {
@@ -833,38 +818,6 @@ if level, err := tc.State().Get("user:skill_level"); err == nil {
 
 ---
 
-## 長期記憶（Memory）の活用
-
-ユーザーの写真傾向やよく改善される点を記憶:
-
-```go
-// セッション終了時にメモリに保存
-func (a *PhotoCoachAgent) OnSessionEnd(ctx context.Context, session *session.Session) {
-    // 今回のセッションからキーとなる情報を抽出し、メモリに追加
-    memoryService.AddSessionToMemory(session)
-}
-
-// 新しいセッション開始時にメモリを検索
-func searchUserHistory(tc tool.Context, query string) ([]string, error) {
-    results, err := tc.Memory().Search(query)
-    if err != nil {
-        return nil, err
-    }
-
-    var memories []string
-    for _, r := range results {
-        memories = append(memories, r.Content)
-    }
-    return memories, nil
-}
-```
-
-これにより、例えば:
-- 「このユーザーは構図の改善が多い」→ 構図についてより詳しく説明
-- 「前回は風景写真だったが、今回はポートレート」→ ジャンルの違いを考慮
-
----
-
 ## デプロイ構成
 
 ### Dockerfile
@@ -912,40 +865,21 @@ resource "google_cloud_run_v2_service" "photo_coach" {
         value = "production"
       }
       env {
-        name  = "PROJECT_ID"
+        name  = "GOOGLE_CLOUD_PROJECT"
         value = var.project_id
       }
       env {
-        name  = "LOCATION"
-        value = var.region
-      }
-      env {
-        name  = "GEMINI_API_KEY"
+        name  = "GOOGLE_API_KEY"
         value = var.gemini_api_key
       }
       env {
         name  = "BUCKET_NAME"
         value = google_storage_bucket.photos.name
       }
-      env {
-        name  = "AGENT_ENGINE_ID"
-        value = google_vertex_ai_agent_engine.photo_coach.id
-      }
-      env {
-        name  = "PROJECT_ID"
-        value = var.project_id
-      }
     }
 
     service_account = google_service_account.photo_coach.email
   }
-}
-
-# Vertex AI Agent Engine（セッション・メモリ管理用）
-resource "google_vertex_ai_agent_engine" "photo_coach" {
-  project      = var.project_id
-  location     = var.region
-  display_name = "photo-coach-engine"
 }
 ```
 
@@ -997,8 +931,6 @@ const followUp = await fetch(`/api/sessions/${session.id}/messages`, {
 | コンテキスト構築 | 毎回プロンプトに履歴を結合 | ADKが自動で管理 |
 | ツール実行 | LLMレスポンスをパースして手動実行 | ADKが自動実行 |
 | 状態管理 | 自前でKVストア実装 | `session.State`で簡単 |
-| 長期記憶 | ベクトルDB構築・検索実装 | `MemoryService`で完結 |
 | 開発UI | 自前で作成 | `adk web` でデバッグUI提供 |
-| 本番デプロイ | - | Vertex AI Agent Engineと連携 |
 
 **結論**: ADKを使うことで、マルチターン会話・セッション管理・状態管理といった「面倒だが重要な部分」をフレームワークに任せ、写真分析・変換・アドバイス生成というコアロジックに集中できます。
