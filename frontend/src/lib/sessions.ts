@@ -121,25 +121,54 @@ export async function getSession(sessionId: string): Promise<Session | null> {
 	return docSnap.data() as Session;
 }
 
+// Helper function to wrap a promise with a timeout
+function withTimeout<T>(
+	promise: Promise<T>,
+	timeoutMs: number,
+	errorMessage = "Operation timed out",
+): Promise<T> {
+	return Promise.race([
+		promise,
+		new Promise<T>((_, reject) =>
+			setTimeout(() => reject(new Error(errorMessage)), timeoutMs),
+		),
+	]);
+}
+
 // Helper to resolve gs:// URLs to HTTPS download URLs
+// Returns undefined if resolution fails (CORS errors, timeout, etc.)
 async function resolveStorageUrl(
 	url: string | undefined,
+	timeoutMs = 5000, // 5 second timeout to prevent long waits
 ): Promise<string | undefined> {
 	if (!url) return undefined;
+
+	// If it's already an HTTPS URL, return it directly
+	if (url.startsWith("https://") || url.startsWith("http://")) {
+		return url;
+	}
+
+	// If it's a gs:// URL, try to resolve it
 	if (url.startsWith("gs://")) {
 		try {
 			const storage = getStorage();
-			// gs://bucket/path/to/file -> ref(storage, "gs://bucket/path/to/file")
-			// The Firebase SDK supports creating a ref directly from a gs:// URL
 			const storageRef = ref(storage, url);
-			return await getDownloadURL(storageRef);
+			// Add timeout to prevent long waits due to CORS issues or network problems
+			return await withTimeout(
+				getDownloadURL(storageRef),
+				timeoutMs,
+				`Timeout resolving storage URL: ${url}`,
+			);
 		} catch (error) {
-			console.error(`Failed to resolve storage URL: ${url}`, error);
-			// Return original URL or undefined on failure?
-			// Returning original allows UI to at least try/show something
-			return url;
+			// Log the error but return undefined so UI can show a fallback
+			console.warn(`Failed to resolve storage URL: ${url}`, error);
+			// Return undefined instead of original gs:// URL
+			// gs:// URLs cannot be loaded by browsers directly
+			return undefined;
 		}
 	}
+
+	// For other URL schemes (data:, blob:, etc.), return as-is
 	return url;
 }
 
@@ -170,23 +199,44 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
 		const data = (await response.json()) as { sessions: BackendSessionInfo[] };
 
 		// Convert backend sessions to frontend Session type
-		return await Promise.all(
-			(data.sessions || []).map(async (backendSession) => ({
-				id: backendSession.id,
-				userId: backendSession.userId,
-				createdAt: Timestamp.fromDate(new Date(backendSession.createdAt)),
-				updatedAt: Timestamp.fromDate(new Date(backendSession.updatedAt)),
-				title: backendSession.title,
-				overallScore: backendSession.overallScore,
-				photoUrl: await resolveStorageUrl(backendSession.photoUrl),
-				originalPhotoUrl: await resolveStorageUrl(
-					backendSession.originalPhotoUrl,
-				),
-				messages: [], // Messages are loaded separately when session is selected
-				messageCount: backendSession.messageCount,
-			})),
+		// Use Promise.allSettled to ensure all sessions are processed even if some URL resolutions fail
+		const sessionResults = await Promise.allSettled(
+			(data.sessions || []).map(async (backendSession): Promise<Session> => {
+				// Resolve URLs with individual error handling - don't let one failure block others
+				const [photoUrl, originalPhotoUrl] = await Promise.all([
+					resolveStorageUrl(backendSession.photoUrl).catch(() => undefined),
+					resolveStorageUrl(backendSession.originalPhotoUrl).catch(
+						() => undefined,
+					),
+				]);
+
+				return {
+					id: backendSession.id,
+					userId: backendSession.userId,
+					createdAt: Timestamp.fromDate(new Date(backendSession.createdAt)),
+					updatedAt: Timestamp.fromDate(new Date(backendSession.updatedAt)),
+					title: backendSession.title,
+					overallScore: backendSession.overallScore,
+					photoUrl,
+					originalPhotoUrl,
+					messages: [], // Messages are loaded separately when session is selected
+					messageCount: backendSession.messageCount,
+				};
+			}),
 		);
-	} catch {
+
+		// Extract successful results, filter out failures
+		return sessionResults
+			.filter(
+				(result): result is PromiseFulfilledResult<Session> =>
+					result.status === "fulfilled",
+			)
+			.map((result) => result.value);
+	} catch (error) {
+		console.warn(
+			"Failed to fetch sessions from API, falling back to Firestore",
+			error,
+		);
 		// Fallback to Firestore query if backend fails
 		const q = query(
 			collection(db, SESSIONS_COLLECTION),
@@ -195,7 +245,31 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
 		);
 
 		const querySnapshot = await getDocs(q);
-		return querySnapshot.docs.map((docData) => docData.data() as Session);
+		const rawSessions = querySnapshot.docs.map(
+			(docData) => docData.data() as Session,
+		);
+
+		// Resolve URLs for Firestore sessions too (they might have gs:// URLs)
+		const resolvedSessions = await Promise.allSettled(
+			rawSessions.map(async (session): Promise<Session> => {
+				const [photoUrl, originalPhotoUrl] = await Promise.all([
+					resolveStorageUrl(session.photoUrl).catch(() => undefined),
+					resolveStorageUrl(session.originalPhotoUrl).catch(() => undefined),
+				]);
+				return {
+					...session,
+					photoUrl,
+					originalPhotoUrl,
+				};
+			}),
+		);
+
+		return resolvedSessions
+			.filter(
+				(result): result is PromiseFulfilledResult<Session> =>
+					result.status === "fulfilled",
+			)
+			.map((result) => result.value);
 	}
 }
 
@@ -249,10 +323,10 @@ export async function getSessionDetail(
 
 		const data = (await response.json()) as BackendSessionDetail;
 
-		// Resolve session level URLs
+		// Resolve session level URLs with error handling
 		const [resolvedPhotoUrl, resolvedOriginalUrl] = await Promise.all([
-			resolveStorageUrl(data.photoUrl),
-			resolveStorageUrl(data.originalImageUrl),
+			resolveStorageUrl(data.photoUrl).catch(() => undefined),
+			resolveStorageUrl(data.originalImageUrl).catch(() => undefined),
 		]);
 
 		// Convert backend messages to ChatMessage[]
@@ -312,7 +386,11 @@ export async function getSessionDetail(
 		}
 
 		return { session, photoSession };
-	} catch {
+	} catch (error) {
+		console.warn(
+			"Failed to fetch session detail from API, falling back to Firestore",
+			error,
+		);
 		// Fallback to Firestore if backend fails
 		const firestoreSession = await getSession(sessionId);
 		if (!firestoreSession) {
@@ -329,14 +407,42 @@ export async function getSessionDetail(
 			.find((m) => m.photoCard);
 
 		if (lastAnalysisMsg?.analysisCard && lastPhotoMsg?.photoCard) {
-			photoSession = {
-				originalPreview: lastPhotoMsg.photoCard.original,
-				enhancedPreview: lastPhotoMsg.photoCard.enhanced,
-				analysis: lastAnalysisMsg.analysisCard,
-			};
+			// Resolve URLs from photoCard (they might be gs:// URLs)
+			const [resolvedOriginal, resolvedEnhanced] = await Promise.all([
+				resolveStorageUrl(lastPhotoMsg.photoCard.original).catch(
+					() => undefined,
+				),
+				resolveStorageUrl(lastPhotoMsg.photoCard.enhanced).catch(
+					() => undefined,
+				),
+			]);
+
+			// Only create photoSession if we have valid resolved URLs
+			if (resolvedOriginal && resolvedEnhanced) {
+				photoSession = {
+					originalPreview: resolvedOriginal,
+					enhancedPreview: resolvedEnhanced,
+					analysis: lastAnalysisMsg.analysisCard,
+				};
+			}
 		}
 
-		return { session: firestoreSession, photoSession };
+		// Also resolve session-level URLs
+		const [resolvedPhotoUrl, resolvedOriginalPhotoUrl] = await Promise.all([
+			resolveStorageUrl(firestoreSession.photoUrl).catch(() => undefined),
+			resolveStorageUrl(firestoreSession.originalPhotoUrl).catch(
+				() => undefined,
+			),
+		]);
+
+		return {
+			session: {
+				...firestoreSession,
+				photoUrl: resolvedPhotoUrl,
+				originalPhotoUrl: resolvedOriginalPhotoUrl,
+			},
+			photoSession,
+		};
 	}
 }
 
