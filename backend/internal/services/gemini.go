@@ -21,6 +21,7 @@ type GeminiClient struct {
 }
 
 type AnalysisResult struct {
+	PhotoSummary   string        `json:"photoSummary"`
 	Summary        string        `json:"summary"`
 	OverallComment string        `json:"overallComment"`
 	OverallScore   int           `json:"overallScore"`
@@ -190,6 +191,7 @@ func (g *GeminiClient) AnalyzeImage(ctx context.Context, imageURL string) (*Anal
 		"あなたは写真講評のプロです。次の写真を詳細に評価してください。",
 		"採点項目は構図、露出、色彩、ライティング、ピント、現像、距離感、意図の明確さの8項目です。",
 		"各項目は0〜10点で採点し、短い講評コメントと具体的な改善提案を必ず記述してください。",
+		"また、写真の内容を一言でまとめたタイトル(photoSummary)を作成してください。",
 		"全体サマリーと総合コメント、平均点(0〜10)も作成してください。",
 		"出力は日本語で、指定されたJSONスキーマに厳密に従ってください。",
 	}, "\n")
@@ -462,6 +464,10 @@ func analysisResponseSchema() *genai.Schema {
 	return &genai.Schema{
 		Type: genai.TypeObject,
 		Properties: map[string]*genai.Schema{
+			"photoSummary": {
+				Type:        genai.TypeString,
+				Description: "写真の内容を一言でまとめたタイトル",
+			},
 			"summary": {
 				Type:        genai.TypeString,
 				Description: "全体サマリー",
@@ -486,6 +492,7 @@ func analysisResponseSchema() *genai.Schema {
 			"intentClarity": categorySchema,
 		},
 		Required: []string{
+			"photoSummary",
 			"summary",
 			"overallComment",
 			"overallScore",
@@ -499,6 +506,7 @@ func analysisResponseSchema() *genai.Schema {
 			"intentClarity",
 		},
 		PropertyOrdering: []string{
+			"photoSummary",
 			"summary",
 			"overallComment",
 			"overallScore",

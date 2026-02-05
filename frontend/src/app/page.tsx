@@ -45,6 +45,7 @@ function ensureAnalysisResult(
 ): AnalysisResult {
 	if (!analysis) {
 		return {
+			photoSummary: "分析なし",
 			summary: "分析データがありません",
 			overallComment: "分析を実行できませんでした",
 			overallScore: 0,
@@ -60,6 +61,7 @@ function ensureAnalysisResult(
 	}
 
 	return {
+		photoSummary: analysis.photoSummary || "タイトルなし",
 		summary: analysis.summary || "サマリーなし",
 		overallComment: analysis.overallComment || "コメントなし",
 		overallScore: analysis.overallScore ?? 0,
@@ -379,6 +381,7 @@ export default function Home() {
 				try {
 					await createSession(user.uid, currentSessionId, newMessage);
 					await updateSessionMetadata(currentSessionId, {
+						title: safeAnalysis.photoSummary,
 						overallScore: safeAnalysis.overallScore,
 						photoUrl: data.enhancedImageUrl,
 					});
