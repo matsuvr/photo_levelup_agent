@@ -63,21 +63,29 @@ export function SessionList({
 								className={`session-item ${session.id === currentSessionId ? "active" : ""}`}
 								onClick={() => onSelectSession(session)}
 							>
-								<div className="session-item-main">
-									<span className="session-item-title">{session.title}</span>
-									{session.overallScore !== undefined && (
-										<span className="session-item-score">
-											{session.overallScore}/10
+								{session.photoUrl && (
+									<div className="session-item-thumbnail">
+										<img src={session.photoUrl} alt="" />
+									</div>
+								)}
+								<div className="session-item-content">
+									<div className="session-item-main">
+										<span className="session-item-title">{session.title}</span>
+										{session.overallScore !== undefined && (
+											<span className="session-item-score">
+												{session.overallScore}/10
+											</span>
+										)}
+									</div>
+									<div className="session-item-meta">
+										<span className="session-item-messages">
+											{session.messageCount ?? session.messages.length}{" "}
+											メッセージ
 										</span>
-									)}
-								</div>
-								<div className="session-item-meta">
-									<span className="session-item-messages">
-										{session.messageCount ?? session.messages.length} メッセージ
-									</span>
-									<span className="session-item-date">
-										{formatDate(session.updatedAt.toDate())}
-									</span>
+										<span className="session-item-date">
+											{formatDate(session.updatedAt.toDate())}
+										</span>
+									</div>
 								</div>
 							</button>
 						</li>
