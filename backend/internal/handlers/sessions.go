@@ -12,14 +12,15 @@ import (
 
 // SessionInfo represents a session summary for the list API
 type SessionInfo struct {
-	ID           string    `json:"id"`
-	UserID       string    `json:"userId"`
-	Title        string    `json:"title"`
-	CreatedAt    time.Time `json:"createdAt"`
-	UpdatedAt    time.Time `json:"updatedAt"`
-	OverallScore *float64  `json:"overallScore,omitempty"`
-	PhotoURL     string    `json:"photoUrl,omitempty"`
-	MessageCount int       `json:"messageCount"`
+	ID               string    `json:"id"`
+	UserID           string    `json:"userId"`
+	Title            string    `json:"title"`
+	CreatedAt        time.Time `json:"createdAt"`
+	UpdatedAt        time.Time `json:"updatedAt"`
+	OverallScore     *float64  `json:"overallScore,omitempty"`
+	PhotoURL         string    `json:"photoUrl,omitempty"`
+	OriginalPhotoURL string    `json:"originalPhotoUrl,omitempty"`
+	MessageCount     int       `json:"messageCount"`
 }
 
 // SessionDetail represents a full session with conversation history
@@ -124,6 +125,12 @@ func (h *SessionsHandler) listUserSessions(ctx context.Context, userID string) (
 		if photoURL, err := state.Get("enhanced_image_url"); err == nil {
 			if s, ok := photoURL.(string); ok {
 				info.PhotoURL = s
+			}
+		}
+
+		if originalPhotoURL, err := state.Get("original_image_url"); err == nil {
+			if s, ok := originalPhotoURL.(string); ok {
+				info.OriginalPhotoURL = s
 			}
 		}
 
