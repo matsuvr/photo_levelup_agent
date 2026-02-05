@@ -13,6 +13,8 @@ func newRouter(deps *handlers.Dependencies) http.Handler {
 	mux.Handle("GET /photo/analyze/status", handlers.NewAnalyzeStatusHandler())
 	mux.Handle("GET /photo/image", handlers.NewImageHandler())
 	mux.Handle("POST /photo/chat", handlers.NewChatHandler(deps))
+	mux.Handle("GET /photo/sessions", handlers.NewSessionsHandler(deps))
+	mux.Handle("GET /photo/sessions/", handlers.NewSessionDetailHandler(deps))
 	mux.Handle("POST /test/gemini", handlers.NewTestGeminiHandler())
 
 	return mux

@@ -57,6 +57,11 @@ func (h *AnalyzeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		sessionID = "default"
 	}
 
+	userID := r.FormValue("userId")
+	if userID == "" {
+		userID = "anonymous"
+	}
+
 	// Read file into memory for async processing
 	imageData, err := io.ReadAll(file)
 	if err != nil {
@@ -70,13 +75,13 @@ func (h *AnalyzeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	jobStore := GetJobStore()
 	jobStore.Create(jobID)
 
-	log.Printf("INFO: Created job %s for session %s", jobID, sessionID)
+	log.Printf("INFO: Created job %s for session %s (user: %s)", jobID, sessionID, userID)
 
 	// Build base URL for returning image proxy links
 	baseURL := resolveBaseURL(r)
 
 	// Start async processing
-	go h.processAnalysis(jobID, sessionID, imageData, contentType, baseURL)
+	go h.processAnalysis(jobID, userID, sessionID, imageData, contentType, baseURL)
 
 	// Return job ID immediately
 	writeJSON(w, http.StatusAccepted, map[string]string{
@@ -86,7 +91,7 @@ func (h *AnalyzeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // processAnalysis runs the analysis in background
-func (h *AnalyzeHandler) processAnalysis(jobID, sessionID string, imageData []byte, contentType string, baseURL string) {
+func (h *AnalyzeHandler) processAnalysis(jobID, userID, sessionID string, imageData []byte, contentType string, baseURL string) {
 	jobStore := GetJobStore()
 	jobStore.SetProcessing(jobID)
 
@@ -119,7 +124,7 @@ func (h *AnalyzeHandler) processAnalysis(jobID, sessionID string, imageData []by
 	}
 
 	// Analyze with agent
-	analysis, err := analyzeWithAgent(ctx, h.deps, sessionID, imageURL)
+	analysis, err := analyzeWithAgent(ctx, h.deps, userID, sessionID, imageURL)
 	if err != nil {
 		log.Printf("ERROR: Job %s - Failed to analyze image: %v", jobID, err)
 		jobStore.SetFailed(jobID, err.Error())
@@ -132,6 +137,17 @@ func (h *AnalyzeHandler) processAnalysis(jobID, sessionID string, imageData []by
 		log.Printf("ERROR: Job %s - Failed to generate enhanced image: %v", jobID, err)
 		jobStore.SetFailed(jobID, err.Error())
 		return
+	}
+
+	// Update session state with enhanced image URL and frontend session ID
+	resolvedSessionID, _ := resolveSessionID(ctx, h.deps.SessionService, "photo_levelup", userID, sessionID)
+	if resolvedSessionID != "" {
+		if err := updateSessionState(ctx, h.deps.SessionService, userID, resolvedSessionID, map[string]any{
+			"enhanced_image_url":  enhancedURL,
+			"frontend_session_id": sessionID,
+		}); err != nil {
+			log.Printf("WARN: Job %s - Failed to update session state: %v", jobID, err)
+		}
 	}
 
 	// Mark as completed
@@ -188,7 +204,7 @@ func (h *AnalyzeStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusOK, response)
 }
 
-func analyzeWithAgent(ctx context.Context, deps *Dependencies, sessionID string, imageURL string) (*services.AnalysisResult, error) {
+func analyzeWithAgent(ctx context.Context, deps *Dependencies, userID, sessionID string, imageURL string) (*services.AnalysisResult, error) {
 	runner, err := runner.New(runner.Config{
 		AppName:        "photo_levelup",
 		Agent:          deps.Agent,
@@ -198,14 +214,14 @@ func analyzeWithAgent(ctx context.Context, deps *Dependencies, sessionID string,
 		return nil, err
 	}
 
-	resolvedSessionID, err := resolveSessionID(ctx, deps.SessionService, "photo_levelup", sessionID)
+	resolvedSessionID, err := resolveSessionID(ctx, deps.SessionService, "photo_levelup", userID, sessionID)
 	if err != nil {
 		return nil, err
 	}
 
 	content := genai.NewContentFromText(fmt.Sprintf("analyze_photo ツールを使って次の写真を分析してください。画像URL: %s", imageURL), genai.RoleUser)
-	log.Printf("INFO: Starting agent run for session %s (resolved: %s)", sessionID, resolvedSessionID)
-	for event, err := range runner.Run(ctx, sessionID, resolvedSessionID, content, agent.RunConfig{}) {
+	log.Printf("INFO: Starting agent run for user %s, session %s (resolved: %s)", userID, sessionID, resolvedSessionID)
+	for event, err := range runner.Run(ctx, userID, resolvedSessionID, content, agent.RunConfig{}) {
 		if err != nil {
 			log.Printf("ERROR: Agent run error: %v", err)
 			return nil, err
@@ -219,7 +235,7 @@ func analyzeWithAgent(ctx context.Context, deps *Dependencies, sessionID string,
 		if event == nil || !event.IsFinalResponse() {
 			continue
 		}
-		analysis, err := extractAnalysisFromState(ctx, deps.SessionService, sessionID, resolvedSessionID)
+		analysis, err := extractAnalysisFromState(ctx, deps.SessionService, userID, resolvedSessionID)
 		if err != nil {
 			log.Printf("ERROR: Failed to extract analysis from state: %v", err)
 			return nil, err
@@ -262,12 +278,12 @@ func generateEnhancedImage(
 func extractAnalysisFromState(
 	ctx context.Context,
 	sessionService session.Service,
-	sessionID string,
+	userID string,
 	resolvedSessionID string,
 ) (*services.AnalysisResult, error) {
 	response, err := sessionService.Get(ctx, &session.GetRequest{
 		AppName:   "photo_levelup",
-		UserID:    sessionID,
+		UserID:    userID,
 		SessionID: resolvedSessionID,
 	})
 	if err != nil {
@@ -334,4 +350,24 @@ func buildImageProxyURL(baseURL string, objectName string) (string, error) {
 		return "", errors.New("base url is required")
 	}
 	return fmt.Sprintf("%s/photo/image?object=%s", strings.TrimRight(baseURL, "/"), escaped), nil
+}
+
+func updateSessionState(ctx context.Context, sessionService session.Service, userID, sessionID string, updates map[string]any) error {
+	response, err := sessionService.Get(ctx, &session.GetRequest{
+		AppName:   "photo_levelup",
+		UserID:    userID,
+		SessionID: sessionID,
+	})
+	if err != nil {
+		return err
+	}
+
+	state := response.Session.State()
+	for key, value := range updates {
+		if err := state.Set(key, value); err != nil {
+			log.Printf("WARN: Failed to set state key %s: %v", key, err)
+		}
+	}
+
+	return nil
 }

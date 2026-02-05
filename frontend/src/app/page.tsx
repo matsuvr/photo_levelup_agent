@@ -241,6 +241,9 @@ export default function Home() {
 			const formData = new FormData();
 			formData.append("image", file);
 			formData.append("sessionId", currentSessionId);
+			if (user) {
+				formData.append("userId", user.uid);
+			}
 
 			addLocalMessage({
 				role: "agent",
@@ -444,6 +447,7 @@ export default function Home() {
 				body: JSON.stringify({
 					sessionId: currentSessionId,
 					message: text,
+					userId: user?.uid,
 				}),
 			});
 
