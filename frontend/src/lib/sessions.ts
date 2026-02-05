@@ -117,16 +117,53 @@ export async function getSession(sessionId: string): Promise<Session | null> {
 	return docSnap.data() as Session;
 }
 
-// Get all sessions for a user
-export async function getUserSessions(userId: string): Promise<Session[]> {
-	const q = query(
-		collection(db, SESSIONS_COLLECTION),
-		where("userId", "==", userId),
-		orderBy("updatedAt", "desc"),
-	);
+// Backend session info from API
+type BackendSessionInfo = {
+	id: string;
+	userId: string;
+	title: string;
+	createdAt: string;
+	updatedAt: string;
+	overallScore?: number;
+	photoUrl?: string;
+	messageCount: number;
+};
 
-	const querySnapshot = await getDocs(q);
-	return querySnapshot.docs.map((docData) => docData.data() as Session);
+// Get all sessions for a user (from backend API)
+export async function getUserSessions(userId: string): Promise<Session[]> {
+	try {
+		const response = await fetch(
+			`/api/sessions?userId=${encodeURIComponent(userId)}`,
+		);
+
+		if (!response.ok) {
+			throw new Error("Failed to fetch sessions");
+		}
+
+		const data = (await response.json()) as { sessions: BackendSessionInfo[] };
+
+		// Convert backend sessions to frontend Session type
+		return (data.sessions || []).map((backendSession) => ({
+			id: backendSession.id,
+			userId: backendSession.userId,
+			createdAt: Timestamp.fromDate(new Date(backendSession.createdAt)),
+			updatedAt: Timestamp.fromDate(new Date(backendSession.updatedAt)),
+			title: backendSession.title,
+			overallScore: backendSession.overallScore,
+			photoUrl: backendSession.photoUrl,
+			messages: [], // Messages are loaded separately when session is selected
+		}));
+	} catch {
+		// Fallback to Firestore query if backend fails
+		const q = query(
+			collection(db, SESSIONS_COLLECTION),
+			where("userId", "==", userId),
+			orderBy("updatedAt", "desc"),
+		);
+
+		const querySnapshot = await getDocs(q);
+		return querySnapshot.docs.map((docData) => docData.data() as Session);
+	}
 }
 
 // Add a message to a session

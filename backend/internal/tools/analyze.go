@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	"google.golang.org/adk/tool"
 	"google.golang.org/adk/tool/functiontool"
@@ -36,7 +37,27 @@ func analyzePhoto(tc tool.Context, args AnalyzePhotoArgs) (*services.AnalysisRes
 		return nil, err
 	}
 
+	// Save metadata for session listing
+	now := time.Now()
+	if err := tc.State().Set("created_at", now.Format(time.RFC3339)); err != nil {
+		log.Printf("WARN: Failed to set created_at state: %v", err)
+	}
+	if err := tc.State().Set("title", formatSessionTitle(now)); err != nil {
+		log.Printf("WARN: Failed to set title state: %v", err)
+	}
+	if err := tc.State().Set("overall_score", result.OverallScore); err != nil {
+		log.Printf("WARN: Failed to set overall_score state: %v", err)
+	}
+
 	return result, nil
+}
+
+func formatSessionTitle(t time.Time) string {
+	loc, _ := time.LoadLocation("Asia/Tokyo")
+	if loc != nil {
+		t = t.In(loc)
+	}
+	return t.Format("1月2日 15:04")
 }
 
 func NewAnalyzePhotoTool() (tool.Tool, error) {

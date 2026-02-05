@@ -15,6 +15,7 @@ import (
 
 type chatRequest struct {
 	SessionID string `json:"sessionId"`
+	UserID    string `json:"userId"`
 	Message   string `json:"message"`
 	ImageURL  string `json:"imageUrl,omitempty"`
 }
@@ -49,9 +50,12 @@ func (h *ChatHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if req.SessionID == "" {
 		req.SessionID = "default"
 	}
+	if req.UserID == "" {
+		req.UserID = "anonymous"
+	}
 
 	ctx := r.Context()
-	reply, err := chatWithAgent(ctx, h.deps, req.SessionID, req.Message, req.ImageURL)
+	reply, err := chatWithAgent(ctx, h.deps, req.UserID, req.SessionID, req.Message, req.ImageURL)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -60,7 +64,7 @@ func (h *ChatHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, chatResponse{Reply: reply})
 }
 
-func chatWithAgent(ctx context.Context, deps *Dependencies, sessionID, message, imageURL string) (string, error) {
+func chatWithAgent(ctx context.Context, deps *Dependencies, userID, sessionID, message, imageURL string) (string, error) {
 	runner, err := runner.New(runner.Config{
 		AppName:        "photo_levelup",
 		Agent:          deps.Agent,
@@ -70,7 +74,7 @@ func chatWithAgent(ctx context.Context, deps *Dependencies, sessionID, message, 
 		return "", err
 	}
 
-	resolvedSessionID, err := resolveSessionID(ctx, deps.SessionService, "photo_levelup", sessionID)
+	resolvedSessionID, err := resolveSessionID(ctx, deps.SessionService, "photo_levelup", userID, sessionID)
 	if err != nil {
 		return "", err
 	}
@@ -86,7 +90,7 @@ func chatWithAgent(ctx context.Context, deps *Dependencies, sessionID, message, 
 	} else {
 		content = genai.NewContentFromText(message, genai.RoleUser)
 	}
-	for event, err := range runner.Run(ctx, sessionID, resolvedSessionID, content, agent.RunConfig{}) {
+	for event, err := range runner.Run(ctx, userID, resolvedSessionID, content, agent.RunConfig{}) {
 		if err != nil {
 			return "", err
 		}
@@ -102,12 +106,18 @@ func chatWithAgent(ctx context.Context, deps *Dependencies, sessionID, message, 
 	return "", errors.New("chat response missing")
 }
 
-func resolveSessionID(ctx context.Context, sessionService session.Service, appName, userID string) (string, error) {
+// resolveSessionID finds or creates an ADK session for the given user and frontend sessionId.
+// The sessionId parameter is used to map frontend sessions to ADK sessions.
+// When a specific sessionId is provided (not "default"), we look for an existing ADK session
+// or create a new one associated with that sessionId.
+func resolveSessionID(ctx context.Context, sessionService session.Service, appName, userID, sessionID string) (string, error) {
+	// List all sessions for this user
 	listResponse, err := sessionService.List(ctx, &session.ListRequest{
 		AppName: appName,
 		UserID:  userID,
 	})
 	if err != nil {
+		// If listing fails, try to create a new session
 		if createResponse, createErr := sessionService.Create(ctx, &session.CreateRequest{
 			AppName: appName,
 			UserID:  userID,
@@ -120,6 +130,19 @@ func resolveSessionID(ctx context.Context, sessionService session.Service, appNa
 		return "", err
 	}
 
+	// If a specific sessionId was provided, look for a matching session
+	// by checking if any session's state has this sessionId stored
+	if sessionID != "default" && sessionID != "" {
+		for _, sess := range listResponse.Sessions {
+			if storedSessionID, err := sess.State().Get("frontend_session_id"); err == nil {
+				if s, ok := storedSessionID.(string); ok && s == sessionID {
+					return sess.ID(), nil
+				}
+			}
+		}
+	}
+
+	// If no matching session found, use the most recent one or create new
 	if len(listResponse.Sessions) > 0 {
 		latest := listResponse.Sessions[0]
 		latestTime := latest.LastUpdateTime()
@@ -132,6 +155,7 @@ func resolveSessionID(ctx context.Context, sessionService session.Service, appNa
 		return latest.ID(), nil
 	}
 
+	// Create a new session
 	createResponse, err := sessionService.Create(ctx, &session.CreateRequest{
 		AppName: appName,
 		UserID:  userID,
