@@ -63,9 +63,12 @@ export function SessionList({
 								className={`session-item ${session.id === currentSessionId ? "active" : ""}`}
 								onClick={() => onSelectSession(session)}
 							>
-								{session.photoUrl && (
+								{(session.originalPhotoUrl || session.photoUrl) && (
 									<div className="session-item-thumbnail">
-										<img src={session.photoUrl} alt="" />
+										<img
+											src={session.originalPhotoUrl || session.photoUrl}
+											alt=""
+										/>
 									</div>
 								)}
 								<div className="session-item-content">

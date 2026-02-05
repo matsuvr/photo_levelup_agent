@@ -13,6 +13,7 @@ import {
 	updateDoc,
 	where,
 } from "firebase/firestore";
+import { getDownloadURL, getStorage, ref } from "firebase/storage";
 import { db } from "./firebase";
 
 export type ChatMessage = {
@@ -53,6 +54,7 @@ export type Session = {
 	title: string;
 	overallScore?: number;
 	photoUrl?: string;
+	originalPhotoUrl?: string;
 	messages: ChatMessage[];
 	messageCount?: number;
 };
@@ -119,6 +121,28 @@ export async function getSession(sessionId: string): Promise<Session | null> {
 	return docSnap.data() as Session;
 }
 
+// Helper to resolve gs:// URLs to HTTPS download URLs
+async function resolveStorageUrl(
+	url: string | undefined,
+): Promise<string | undefined> {
+	if (!url) return undefined;
+	if (url.startsWith("gs://")) {
+		try {
+			const storage = getStorage();
+			// gs://bucket/path/to/file -> ref(storage, "gs://bucket/path/to/file")
+			// The Firebase SDK supports creating a ref directly from a gs:// URL
+			const storageRef = ref(storage, url);
+			return await getDownloadURL(storageRef);
+		} catch (error) {
+			console.error(`Failed to resolve storage URL: ${url}`, error);
+			// Return original URL or undefined on failure?
+			// Returning original allows UI to at least try/show something
+			return url;
+		}
+	}
+	return url;
+}
+
 // Backend session info from API
 type BackendSessionInfo = {
 	id: string;
@@ -128,6 +152,7 @@ type BackendSessionInfo = {
 	updatedAt: string;
 	overallScore?: number;
 	photoUrl?: string;
+	originalPhotoUrl?: string;
 	messageCount: number;
 };
 
@@ -145,17 +170,22 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
 		const data = (await response.json()) as { sessions: BackendSessionInfo[] };
 
 		// Convert backend sessions to frontend Session type
-		return (data.sessions || []).map((backendSession) => ({
-			id: backendSession.id,
-			userId: backendSession.userId,
-			createdAt: Timestamp.fromDate(new Date(backendSession.createdAt)),
-			updatedAt: Timestamp.fromDate(new Date(backendSession.updatedAt)),
-			title: backendSession.title,
-			overallScore: backendSession.overallScore,
-			photoUrl: backendSession.photoUrl,
-			messages: [], // Messages are loaded separately when session is selected
-			messageCount: backendSession.messageCount,
-		}));
+		return await Promise.all(
+			(data.sessions || []).map(async (backendSession) => ({
+				id: backendSession.id,
+				userId: backendSession.userId,
+				createdAt: Timestamp.fromDate(new Date(backendSession.createdAt)),
+				updatedAt: Timestamp.fromDate(new Date(backendSession.updatedAt)),
+				title: backendSession.title,
+				overallScore: backendSession.overallScore,
+				photoUrl: await resolveStorageUrl(backendSession.photoUrl),
+				originalPhotoUrl: await resolveStorageUrl(
+					backendSession.originalPhotoUrl,
+				),
+				messages: [], // Messages are loaded separately when session is selected
+				messageCount: backendSession.messageCount,
+			})),
+		);
 	} catch {
 		// Fallback to Firestore query if backend fails
 		const q = query(
@@ -219,34 +249,44 @@ export async function getSessionDetail(
 
 		const data = (await response.json()) as BackendSessionDetail;
 
+		// Resolve session level URLs
+		const [resolvedPhotoUrl, resolvedOriginalUrl] = await Promise.all([
+			resolveStorageUrl(data.photoUrl),
+			resolveStorageUrl(data.originalImageUrl),
+		]);
+
 		// Convert backend messages to ChatMessage[]
 		// Find the first agent message to attach photo and analysis cards
 		let hasAttachedCards = false;
-		const messages: ChatMessage[] = data.messages.map((msg, index) => {
-			const chatMessage: ChatMessage = {
-				id: `${data.id}-msg-${index}`,
-				role: msg.role,
-				content: msg.content,
-				timestamp: Timestamp.fromDate(new Date(msg.timestamp)),
-			};
 
-			// Attach photo and analysis cards to the first agent message after user upload
-			if (
-				!hasAttachedCards &&
-				msg.role === "agent" &&
-				data.analysisResult &&
-				data.photoUrl
-			) {
-				chatMessage.photoCard = {
-					original: data.originalImageUrl || data.photoUrl,
-					enhanced: data.photoUrl,
+		// We need to process messages asynchronously to resolve URLs in cards
+		const messages = await Promise.all(
+			data.messages.map(async (msg, index) => {
+				const chatMessage: ChatMessage = {
+					id: `${data.id}-msg-${index}`,
+					role: msg.role,
+					content: msg.content,
+					timestamp: Timestamp.fromDate(new Date(msg.timestamp)),
 				};
-				chatMessage.analysisCard = data.analysisResult;
-				hasAttachedCards = true;
-			}
 
-			return chatMessage;
-		});
+				// Attach photo and analysis cards to the first agent message after user upload
+				if (
+					!hasAttachedCards &&
+					msg.role === "agent" &&
+					data.analysisResult &&
+					resolvedPhotoUrl
+				) {
+					chatMessage.photoCard = {
+						original: resolvedOriginalUrl || resolvedPhotoUrl,
+						enhanced: resolvedPhotoUrl,
+					};
+					chatMessage.analysisCard = data.analysisResult;
+					hasAttachedCards = true;
+				}
+
+				return chatMessage;
+			}),
+		);
 
 		// Build session object
 		const session: Session = {
@@ -256,17 +296,17 @@ export async function getSessionDetail(
 			updatedAt: Timestamp.fromDate(new Date(data.updatedAt)),
 			title: data.title,
 			overallScore: data.overallScore,
-			photoUrl: data.photoUrl,
+			photoUrl: resolvedPhotoUrl,
 			messages,
 			messageCount: data.messageCount,
 		};
 
 		// Build photo session if analysis data exists
 		let photoSession: SessionDetailResult["photoSession"] = null;
-		if (data.analysisResult && data.photoUrl) {
+		if (data.analysisResult && resolvedPhotoUrl) {
 			photoSession = {
-				originalPreview: data.originalImageUrl || data.photoUrl,
-				enhancedPreview: data.photoUrl,
+				originalPreview: resolvedOriginalUrl || resolvedPhotoUrl,
+				enhancedPreview: resolvedPhotoUrl,
 				analysis: data.analysisResult,
 			};
 		}
@@ -355,6 +395,7 @@ export function convertToSession(data: DocumentData): Session {
 		title: data.title,
 		overallScore: data.overallScore,
 		photoUrl: data.photoUrl,
+		originalPhotoUrl: data.originalPhotoUrl,
 		messages: data.messages || [],
 	};
 }
