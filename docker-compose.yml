@@ -11,7 +11,5 @@ services:
       GOOGLE_API_KEY: "${GOOGLE_API_KEY}"
       GEMINI_MODEL: "${GEMINI_MODEL:-gemini-3-flash-preview}"
       BUCKET_NAME: "${BUCKET_NAME}"
-      # For production with Vertex AI Session Service:
+      # For Firestore session persistence:
       GOOGLE_CLOUD_PROJECT: "${GOOGLE_CLOUD_PROJECT:-}"
-      GOOGLE_CLOUD_LOCATION: "${GOOGLE_CLOUD_LOCATION:-us-central1}"
-      AGENT_ENGINE_ID: "${AGENT_ENGINE_ID:-1042656981015330816}"
