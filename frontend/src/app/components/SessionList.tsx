@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import type { Session } from "@/lib/sessions";
 
 type SessionListProps = {
@@ -9,6 +10,53 @@ type SessionListProps = {
 	onNewSession: () => void;
 	loading?: boolean;
 };
+
+// Helper to check if a URL is valid for img src
+function isValidImageUrl(url: string | undefined): url is string {
+	if (!url) return false;
+	// gs:// URLs cannot be loaded directly by browsers
+	if (url.startsWith("gs://")) return false;
+	// Accept http://, https://, data:, blob: URLs
+	return (
+		url.startsWith("https://") ||
+		url.startsWith("http://") ||
+		url.startsWith("data:") ||
+		url.startsWith("blob:")
+	);
+}
+
+// Thumbnail component with error handling
+function SessionThumbnail({ src, alt }: { src: string; alt: string }) {
+	const [hasError, setHasError] = useState(false);
+
+	const handleError = useCallback(() => {
+		setHasError(true);
+	}, []);
+
+	if (hasError) {
+		return (
+			<div className="session-item-thumbnail session-item-thumbnail-fallback">
+				<svg
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					strokeWidth="1.5"
+					aria-hidden="true"
+				>
+					<rect x="3" y="3" width="18" height="18" rx="2" />
+					<circle cx="8.5" cy="8.5" r="1.5" />
+					<path d="M21 15l-5-5L5 21" />
+				</svg>
+			</div>
+		);
+	}
+
+	return (
+		<div className="session-item-thumbnail">
+			<img src={src} alt={alt} onError={handleError} />
+		</div>
+	);
+}
 
 export function SessionList({
 	sessions,
@@ -63,14 +111,12 @@ export function SessionList({
 								className={`session-item ${session.id === currentSessionId ? "active" : ""}`}
 								onClick={() => onSelectSession(session)}
 							>
-								{(session.originalPhotoUrl || session.photoUrl) && (
-									<div className="session-item-thumbnail">
-										<img
-											src={session.originalPhotoUrl || session.photoUrl}
-											alt=""
-										/>
-									</div>
-								)}
+								{(() => {
+									const imageUrl = session.originalPhotoUrl || session.photoUrl;
+									return isValidImageUrl(imageUrl) ? (
+										<SessionThumbnail src={imageUrl} alt="" />
+									) : null;
+								})()}
 								<div className="session-item-content">
 									<div className="session-item-main">
 										<span className="session-item-title">{session.title}</span>

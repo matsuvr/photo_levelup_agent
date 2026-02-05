@@ -1563,6 +1563,19 @@ textarea {
 	object-fit: cover;
 }
 
+.session-item-thumbnail-fallback {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--bg-tertiary);
+}
+
+.session-item-thumbnail-fallback svg {
+	width: 24px;
+	height: 24px;
+	color: var(--text-muted);
+}
+
 .session-item-content {
 	flex: 1;
 	min-width: 0;

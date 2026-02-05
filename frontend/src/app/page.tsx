@@ -42,6 +42,20 @@ const defaultCategoryScore: CategoryScore = {
 	improvement: "改善提案なし",
 };
 
+// Helper to check if a URL is valid for img src (excludes gs:// URLs which browsers can't load)
+function isValidImageUrl(url: string | undefined): url is string {
+	if (!url) return false;
+	// gs:// URLs cannot be loaded directly by browsers
+	if (url.startsWith("gs://")) return false;
+	// Accept http://, https://, data:, blob: URLs
+	return (
+		url.startsWith("https://") ||
+		url.startsWith("http://") ||
+		url.startsWith("data:") ||
+		url.startsWith("blob:")
+	);
+}
+
 function ensureAnalysisResult(
 	analysis: Partial<AnalysisResult> | undefined,
 ): AnalysisResult {
@@ -604,61 +618,63 @@ export default function Home() {
 				{/* Mobile Layout */}
 				<div className="mobile-layout">
 					{/* Swipeable Tabs Section */}
-					{photoSession && (
-						<div className="tabs-section">
-							<div className="tabs-header">
-								<button
-									type="button"
-									className={`tab-button ${activeTab === "photo" ? "active" : ""}`}
-									onClick={() => setActiveTab("photo")}
-								>
-									📸 写真
-								</button>
-								<button
-									type="button"
-									className={`tab-button ${activeTab === "analysis" ? "active" : ""}`}
-									onClick={() => setActiveTab("analysis")}
-								>
-									📊 分析
-								</button>
-							</div>
-							<SwipeableTabs activeTab={activeTab} onTabChange={setActiveTab}>
-								<div className="tab-content">
-									{activeTab === "photo" ? (
-										<BeforeAfterSlider
-											beforeSrc={photoSession.originalPreview}
-											afterSrc={photoSession.enhancedPreview}
-										/>
-									) : (
-										// biome-ignore lint/a11y/useSemanticElements: Content includes interactive elements
-										<div
-											className="analysis-preview-card"
-											role="button"
-											tabIndex={0}
-											onClick={() => setShowAnalysisPopup(true)}
-											onKeyDown={(e) => {
-												if (e.key === "Enter" || e.key === " ") {
-													e.preventDefault();
-													setShowAnalysisPopup(true);
-												}
-											}}
-										>
-											<div className="analysis-score-big">
-												<span className="score-number">
-													{photoSession.analysis.overallScore}
-												</span>
-												<span className="score-max">/ 10</span>
-											</div>
-											<RadarChart items={chartItems} />
-											<button type="button" className="details-button">
-												詳細を見る
-											</button>
-										</div>
-									)}
+					{photoSession &&
+						isValidImageUrl(photoSession.originalPreview) &&
+						isValidImageUrl(photoSession.enhancedPreview) && (
+							<div className="tabs-section">
+								<div className="tabs-header">
+									<button
+										type="button"
+										className={`tab-button ${activeTab === "photo" ? "active" : ""}`}
+										onClick={() => setActiveTab("photo")}
+									>
+										📸 写真
+									</button>
+									<button
+										type="button"
+										className={`tab-button ${activeTab === "analysis" ? "active" : ""}`}
+										onClick={() => setActiveTab("analysis")}
+									>
+										📊 分析
+									</button>
 								</div>
-							</SwipeableTabs>
-						</div>
-					)}
+								<SwipeableTabs activeTab={activeTab} onTabChange={setActiveTab}>
+									<div className="tab-content">
+										{activeTab === "photo" ? (
+											<BeforeAfterSlider
+												beforeSrc={photoSession.originalPreview}
+												afterSrc={photoSession.enhancedPreview}
+											/>
+										) : (
+											// biome-ignore lint/a11y/useSemanticElements: Content includes interactive elements
+											<div
+												className="analysis-preview-card"
+												role="button"
+												tabIndex={0}
+												onClick={() => setShowAnalysisPopup(true)}
+												onKeyDown={(e) => {
+													if (e.key === "Enter" || e.key === " ") {
+														e.preventDefault();
+														setShowAnalysisPopup(true);
+													}
+												}}
+											>
+												<div className="analysis-score-big">
+													<span className="score-number">
+														{photoSession.analysis.overallScore}
+													</span>
+													<span className="score-max">/ 10</span>
+												</div>
+												<RadarChart items={chartItems} />
+												<button type="button" className="details-button">
+													詳細を見る
+												</button>
+											</div>
+										)}
+									</div>
+								</SwipeableTabs>
+							</div>
+						)}
 
 					{/* Chat Panel */}
 					<div className="chat-panel">
@@ -670,15 +686,17 @@ export default function Home() {
 											<ReactMarkdown remarkPlugins={[remarkGfm]}>
 												{message.content}
 											</ReactMarkdown>
-											{message.photoCard && (
-												<div className="embedded-photo-card">
-													<BeforeAfterSlider
-														beforeSrc={message.photoCard.original}
-														afterSrc={message.photoCard.enhanced}
-														compact
-													/>
-												</div>
-											)}
+											{message.photoCard &&
+												isValidImageUrl(message.photoCard.original) &&
+												isValidImageUrl(message.photoCard.enhanced) && (
+													<div className="embedded-photo-card">
+														<BeforeAfterSlider
+															beforeSrc={message.photoCard.original}
+															afterSrc={message.photoCard.enhanced}
+															compact
+														/>
+													</div>
+												)}
 											{message.analysisCard && (
 												// biome-ignore lint/a11y/useSemanticElements: Styling consistency
 												<div
@@ -781,25 +799,27 @@ export default function Home() {
 					</div>
 
 					{/* Photo Comparison */}
-					{photoSession && (
-						<div className="sidebar-section">
-							<h2>写真比較</h2>
-							<div className="photo-grid">
-								<div className="photo-item">
-									<span className="photo-label">元</span>
-									<div className="preview">
-										<img src={photoSession.originalPreview} alt="Original" />
+					{photoSession &&
+						isValidImageUrl(photoSession.originalPreview) &&
+						isValidImageUrl(photoSession.enhancedPreview) && (
+							<div className="sidebar-section">
+								<h2>写真比較</h2>
+								<div className="photo-grid">
+									<div className="photo-item">
+										<span className="photo-label">元</span>
+										<div className="preview">
+											<img src={photoSession.originalPreview} alt="Original" />
+										</div>
 									</div>
-								</div>
-								<div className="photo-item">
-									<span className="photo-label">生成</span>
-									<div className="preview">
-										<img src={photoSession.enhancedPreview} alt="Enhanced" />
+									<div className="photo-item">
+										<span className="photo-label">生成</span>
+										<div className="preview">
+											<img src={photoSession.enhancedPreview} alt="Enhanced" />
+										</div>
 									</div>
 								</div>
 							</div>
-						</div>
-					)}
+						)}
 
 					{/* Analysis Results */}
 					{photoSession && (
