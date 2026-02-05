@@ -142,9 +142,13 @@ func resolveSessionID(ctx context.Context, sessionService session.Service, appNa
 		}
 		// No matching session found for the given sessionID - create a new one
 		// This ensures each new frontend session gets its own backend session
+		// Include frontend_session_id in initial state for session mapping
 		createResponse, err := sessionService.Create(ctx, &session.CreateRequest{
 			AppName: appName,
 			UserID:  userID,
+			State: map[string]any{
+				"frontend_session_id": sessionID,
+			},
 		})
 		if err != nil {
 			return "", err

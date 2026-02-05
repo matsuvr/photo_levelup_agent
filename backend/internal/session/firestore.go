@@ -382,5 +382,51 @@ func (s *FirestoreService) getEvents(ctx context.Context, sessionDoc *firestore.
 	return NewFirestoreEvents(events), nil
 }
 
+// UpdateState updates the state of a session in Firestore.
+// This method persists state changes directly to Firestore without requiring an AppendEvent call.
+func (s *FirestoreService) UpdateState(ctx context.Context, appName, userID, sessionID string, updates map[string]any) error {
+	docRef := s.sessionDocRef(appName, userID, sessionID)
+
+	// Get current state
+	doc, err := docRef.Get(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get session for state update: %w", err)
+	}
+
+	var sessionDoc SessionDocument
+	if err := doc.DataTo(&sessionDoc); err != nil {
+		return fmt.Errorf("failed to decode session: %w", err)
+	}
+
+	// Merge updates into existing state
+	if sessionDoc.State == nil {
+		sessionDoc.State = make(map[string]any)
+	}
+	for key, value := range updates {
+		sessionDoc.State[key] = value
+	}
+
+	// Update Firestore
+	_, err = docRef.Update(ctx, []firestore.Update{
+		{Path: "state", Value: sessionDoc.State},
+		{Path: "updatedAt", Value: time.Now()},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update session state: %w", err)
+	}
+
+	log.Printf("Updated session state for session %s: keys=%v", sessionID, keysFromMap(updates))
+	return nil
+}
+
+// keysFromMap returns the keys of a map for logging purposes.
+func keysFromMap(m map[string]any) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
 // Ensure FirestoreService implements session.Service
 var _ session.Service = (*FirestoreService)(nil)

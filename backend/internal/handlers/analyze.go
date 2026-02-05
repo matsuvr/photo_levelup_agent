@@ -366,7 +366,23 @@ func buildImageProxyURL(baseURL string, objectName string) (string, error) {
 	return fmt.Sprintf("%s/photo/image?object=%s", strings.TrimRight(baseURL, "/"), escaped), nil
 }
 
+// StateUpdater is an optional interface for session services that support direct state updates.
+type StateUpdater interface {
+	UpdateState(ctx context.Context, appName, userID, sessionID string, updates map[string]any) error
+}
+
 func updateSessionState(ctx context.Context, sessionService session.Service, userID, sessionID string, updates map[string]any) error {
+	// Try to use direct state update if the session service supports it
+	if updater, ok := sessionService.(StateUpdater); ok {
+		if err := updater.UpdateState(ctx, "photo_levelup", userID, sessionID, updates); err != nil {
+			log.Printf("WARN: Direct state update failed, falling back to memory-only update: %v", err)
+		} else {
+			log.Printf("INFO: Session state updated and persisted for session %s", sessionID)
+			return nil
+		}
+	}
+
+	// Fallback: update state in memory (may not persist for all session service types)
 	response, err := sessionService.Get(ctx, &session.GetRequest{
 		AppName:   "photo_levelup",
 		UserID:    userID,
@@ -383,5 +399,6 @@ func updateSessionState(ctx context.Context, sessionService session.Service, use
 		}
 	}
 
+	log.Printf("WARN: Session state updated in memory only for session %s (may not persist)", sessionID)
 	return nil
 }
