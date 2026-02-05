@@ -11,6 +11,7 @@ import {
 } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { LoadingBubble } from "@/app/components/LoadingBubble";
 import { SessionList } from "@/app/components/SessionList";
 import { SlideMenu } from "@/app/components/SlideMenu";
 import { useAuth } from "@/context/AuthContext";
@@ -712,6 +713,7 @@ export default function Home() {
 									)}
 								</div>
 							))}
+							{isChatting && <LoadingBubble />}
 							<div ref={messagesEndRef} />
 						</div>
 
