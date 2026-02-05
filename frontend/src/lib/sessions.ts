@@ -25,6 +25,7 @@ export type ChatMessage = {
 };
 
 export type AnalysisResult = {
+	photoSummary: string;
 	summary: string;
 	overallComment: string;
 	overallScore: number;
