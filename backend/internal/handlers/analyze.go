@@ -139,13 +139,27 @@ func (h *AnalyzeHandler) processAnalysis(jobID, userID, sessionID string, imageD
 		return
 	}
 
-	// Update session state with enhanced image URL and frontend session ID
+	// Update session state with all analysis data
 	resolvedSessionID, _ := resolveSessionID(ctx, h.deps.SessionService, "photo_levelup", userID, sessionID)
 	if resolvedSessionID != "" {
-		if err := updateSessionState(ctx, h.deps.SessionService, userID, resolvedSessionID, map[string]any{
+		// Serialize analysis result to JSON
+		analysisJSON, err := json.Marshal(analysis)
+		if err != nil {
+			log.Printf("WARN: Job %s - Failed to marshal analysis: %v", jobID, err)
+		}
+
+		stateUpdates := map[string]any{
 			"enhanced_image_url":  enhancedURL,
+			"original_image_url":  imageURL,
 			"frontend_session_id": sessionID,
-		}); err != nil {
+			"overall_score":       analysis.OverallScore,
+			"title":               analysis.PhotoSummary,
+		}
+		if analysisJSON != nil {
+			stateUpdates["analysis_result"] = string(analysisJSON)
+		}
+
+		if err := updateSessionState(ctx, h.deps.SessionService, userID, resolvedSessionID, stateUpdates); err != nil {
 			log.Printf("WARN: Job %s - Failed to update session state: %v", jobID, err)
 		}
 	}

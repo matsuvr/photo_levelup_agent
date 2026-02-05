@@ -220,12 +220,33 @@ export async function getSessionDetail(
 		const data = (await response.json()) as BackendSessionDetail;
 
 		// Convert backend messages to ChatMessage[]
-		const messages: ChatMessage[] = data.messages.map((msg, index) => ({
-			id: `${data.id}-msg-${index}`,
-			role: msg.role,
-			content: msg.content,
-			timestamp: Timestamp.fromDate(new Date(msg.timestamp)),
-		}));
+		// Find the first agent message to attach photo and analysis cards
+		let hasAttachedCards = false;
+		const messages: ChatMessage[] = data.messages.map((msg, index) => {
+			const chatMessage: ChatMessage = {
+				id: `${data.id}-msg-${index}`,
+				role: msg.role,
+				content: msg.content,
+				timestamp: Timestamp.fromDate(new Date(msg.timestamp)),
+			};
+
+			// Attach photo and analysis cards to the first agent message after user upload
+			if (
+				!hasAttachedCards &&
+				msg.role === "agent" &&
+				data.analysisResult &&
+				data.photoUrl
+			) {
+				chatMessage.photoCard = {
+					original: data.originalImageUrl || data.photoUrl,
+					enhanced: data.photoUrl,
+				};
+				chatMessage.analysisCard = data.analysisResult;
+				hasAttachedCards = true;
+			}
+
+			return chatMessage;
+		});
 
 		// Build session object
 		const session: Session = {

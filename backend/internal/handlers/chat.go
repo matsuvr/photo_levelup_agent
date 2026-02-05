@@ -140,9 +140,23 @@ func resolveSessionID(ctx context.Context, sessionService session.Service, appNa
 				}
 			}
 		}
+		// No matching session found for the given sessionID - create a new one
+		// This ensures each new frontend session gets its own backend session
+		createResponse, err := sessionService.Create(ctx, &session.CreateRequest{
+			AppName: appName,
+			UserID:  userID,
+		})
+		if err != nil {
+			return "", err
+		}
+		newSessionID := createResponse.Session.ID()
+		if strings.TrimSpace(newSessionID) == "" {
+			return "", errors.New("created session has empty ID")
+		}
+		return newSessionID, nil
 	}
 
-	// If no matching session found, use the most recent one or create new
+	// For "default" or empty sessionId, use the most recent session or create new
 	if len(listResponse.Sessions) > 0 {
 		latest := listResponse.Sessions[0]
 		latestTime := latest.LastUpdateTime()
