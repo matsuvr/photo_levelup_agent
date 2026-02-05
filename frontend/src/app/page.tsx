@@ -22,6 +22,7 @@ import {
 	type ChatMessage,
 	createSession,
 	generateSessionId,
+	getSessionDetail,
 	getUserSessions,
 	type Session,
 	updateSessionMetadata,
@@ -142,37 +143,29 @@ export default function Home() {
 		setShowSlideMenu(false);
 	};
 
-	const handleSelectSession = (session: Session) => {
+	const handleSelectSession = async (session: Session) => {
 		setCurrentSessionId(session.id);
-		setMessages(session.messages);
+		setShowSlideMenu(false);
 
-		// Construct photoSession from session data if available
-		if (session.photoUrl && session.overallScore !== undefined) {
-			// Note: In a real app we would store full analysis details in Firestore
-			// For now we recover basic state. If analysis details are missing from session type,
-			// we might need to fetch them or accept partial state.
-			// Since our Session type stores full messages, we can check if any message has cards
-			const lastAnalysisMsg = [...session.messages]
-				.reverse()
-				.find((m) => m.analysisCard);
-			const lastPhotoMsg = [...session.messages]
-				.reverse()
-				.find((m) => m.photoCard);
-
-			if (lastAnalysisMsg?.analysisCard && lastPhotoMsg?.photoCard) {
-				setPhotoSession({
-					originalPreview: lastPhotoMsg.photoCard.original,
-					enhancedPreview: lastPhotoMsg.photoCard.enhanced,
-					analysis: lastAnalysisMsg.analysisCard,
-				});
-			} else {
-				setPhotoSession(null);
+		// Fetch full session detail from backend
+		if (user) {
+			try {
+				const detail = await getSessionDetail(user.uid, session.id);
+				if (detail) {
+					setMessages(detail.session.messages);
+					setPhotoSession(detail.photoSession);
+					return;
+				}
+			} catch (error) {
+				secureLog.error("Failed to fetch session detail:", error);
 			}
-		} else {
-			setPhotoSession(null);
 		}
 
-		setShowSlideMenu(false);
+		// Fallback: use data from session list (messages will be empty)
+		setMessages(
+			session.messages.length > 0 ? session.messages : [initialMessage],
+		);
+		setPhotoSession(null);
 	};
 
 	const chartItems = useMemo(() => {

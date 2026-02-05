@@ -73,7 +73,7 @@ export function SessionList({
 								</div>
 								<div className="session-item-meta">
 									<span className="session-item-messages">
-										{session.messages.length} メッセージ
+										{session.messageCount ?? session.messages.length} メッセージ
 									</span>
 									<span className="session-item-date">
 										{formatDate(session.updatedAt.toDate())}
