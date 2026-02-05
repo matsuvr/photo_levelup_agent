@@ -54,6 +54,7 @@ export type Session = {
 	overallScore?: number;
 	photoUrl?: string;
 	messages: ChatMessage[];
+	messageCount?: number;
 };
 
 const SESSIONS_COLLECTION = "sessions";
@@ -153,6 +154,7 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
 			overallScore: backendSession.overallScore,
 			photoUrl: backendSession.photoUrl,
 			messages: [], // Messages are loaded separately when session is selected
+			messageCount: backendSession.messageCount,
 		}));
 	} catch {
 		// Fallback to Firestore query if backend fails
@@ -164,6 +166,116 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
 
 		const querySnapshot = await getDocs(q);
 		return querySnapshot.docs.map((docData) => docData.data() as Session);
+	}
+}
+
+// Backend session detail from API
+type BackendMessageInfo = {
+	role: "user" | "agent";
+	content: string;
+	timestamp: string;
+};
+
+type BackendSessionDetail = {
+	id: string;
+	userId: string;
+	title: string;
+	createdAt: string;
+	updatedAt: string;
+	overallScore?: number;
+	photoUrl?: string;
+	messageCount: number;
+	messages: BackendMessageInfo[];
+	analysisResult?: AnalysisResult;
+	originalImageUrl?: string;
+};
+
+// Session detail result including photo session data
+export type SessionDetailResult = {
+	session: Session;
+	photoSession: {
+		originalPreview: string;
+		enhancedPreview: string;
+		analysis: AnalysisResult;
+	} | null;
+};
+
+// Get session detail including messages from backend API
+export async function getSessionDetail(
+	userId: string,
+	sessionId: string,
+): Promise<SessionDetailResult | null> {
+	try {
+		const response = await fetch(
+			`/api/sessions/${encodeURIComponent(sessionId)}?userId=${encodeURIComponent(userId)}`,
+		);
+
+		if (!response.ok) {
+			if (response.status === 404) {
+				return null;
+			}
+			throw new Error("Failed to fetch session detail");
+		}
+
+		const data = (await response.json()) as BackendSessionDetail;
+
+		// Convert backend messages to ChatMessage[]
+		const messages: ChatMessage[] = data.messages.map((msg, index) => ({
+			id: `${data.id}-msg-${index}`,
+			role: msg.role,
+			content: msg.content,
+			timestamp: Timestamp.fromDate(new Date(msg.timestamp)),
+		}));
+
+		// Build session object
+		const session: Session = {
+			id: data.id,
+			userId: data.userId,
+			createdAt: Timestamp.fromDate(new Date(data.createdAt)),
+			updatedAt: Timestamp.fromDate(new Date(data.updatedAt)),
+			title: data.title,
+			overallScore: data.overallScore,
+			photoUrl: data.photoUrl,
+			messages,
+			messageCount: data.messageCount,
+		};
+
+		// Build photo session if analysis data exists
+		let photoSession: SessionDetailResult["photoSession"] = null;
+		if (data.analysisResult && data.photoUrl) {
+			photoSession = {
+				originalPreview: data.originalImageUrl || data.photoUrl,
+				enhancedPreview: data.photoUrl,
+				analysis: data.analysisResult,
+			};
+		}
+
+		return { session, photoSession };
+	} catch {
+		// Fallback to Firestore if backend fails
+		const firestoreSession = await getSession(sessionId);
+		if (!firestoreSession) {
+			return null;
+		}
+
+		// Try to reconstruct photo session from messages
+		let photoSession: SessionDetailResult["photoSession"] = null;
+		const lastAnalysisMsg = [...firestoreSession.messages]
+			.reverse()
+			.find((m) => m.analysisCard);
+		const lastPhotoMsg = [...firestoreSession.messages]
+			.reverse()
+			.find((m) => m.photoCard);
+
+		if (lastAnalysisMsg?.analysisCard && lastPhotoMsg?.photoCard) {
+			photoSession = {
+				originalPreview: lastPhotoMsg.photoCard.original,
+				enhancedPreview: lastPhotoMsg.photoCard.enhanced,
+				analysis: lastAnalysisMsg.analysisCard,
+			};
+		}
+
+		return { session: firestoreSession, photoSession };
 	}
 }
 
