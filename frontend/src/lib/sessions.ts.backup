@@ -320,9 +320,7 @@ function extractOriginalUserMessage(content: string): string {
 	}
 
 	// Extract everything after the marker
-	const afterMarker = content.substring(
-		markerIndex + userQuestionMarker.length,
-	);
+	const afterMarker = content.substring(markerIndex + userQuestionMarker.length);
 	return afterMarker.trim();
 }
 
@@ -358,15 +356,10 @@ export async function getSessionDetail(
 		// We need to process messages asynchronously to resolve URLs in cards
 		const messages = await Promise.all(
 			data.messages.map(async (msg, index) => {
-				// Extract original user message from enriched content (if applicable)
-				const displayContent =
-					msg.role === "user"
-						? extractOriginalUserMessage(msg.content)
-						: msg.content;
 				const chatMessage: ChatMessage = {
 					id: `${data.id}-msg-${index}`,
 					role: msg.role,
-					content: displayContent,
+					content: msg.content,
 					timestamp: Timestamp.fromDate(new Date(msg.timestamp)),
 				};
 

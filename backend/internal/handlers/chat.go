@@ -117,19 +117,28 @@ func chatWithAgent(ctx context.Context, deps *Dependencies, userID, sessionID, m
 	} else {
 		content = genai.NewContentFromText(enrichedMessage, genai.RoleUser)
 	}
+
+	log.Printf("INFO: Starting runner.Run for session %s, user message: %.100s", resolvedSessionID, message)
+
+	// Track events seen during run
+	eventCount := 0
 	for event, err := range runner.Run(ctx, userID, resolvedSessionID, content, agent.RunConfig{}) {
 		if err != nil {
 			return "", err
 		}
+		eventCount++
 		if event == nil || !event.IsFinalResponse() {
 			continue
 		}
 		text := strings.TrimSpace(extractText(event.Content))
 		if text != "" {
+			log.Printf("INFO: Completed runner.Run for session %s, saw %d events, returning response: %.100s",
+				resolvedSessionID, eventCount, text)
 			return text, nil
 		}
 	}
 
+	log.Printf("WARN: runner.Run completed but no response text found for session %s (saw %d events)", resolvedSessionID, eventCount)
 	return "", errors.New("chat response missing")
 }
 

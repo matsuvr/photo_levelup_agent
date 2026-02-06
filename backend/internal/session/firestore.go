@@ -319,6 +319,21 @@ func (s *FirestoreService) Delete(ctx context.Context, req *session.DeleteReques
 func (s *FirestoreService) AppendEvent(ctx context.Context, sess session.Session, event *session.Event) error {
 	docRef := s.sessionDocRef(sess.AppName(), sess.UserID(), sess.ID())
 
+	// Log event details for debugging
+	var contentPreview string
+	if event.Content != nil {
+		if len(event.Content.Parts) > 0 && event.Content.Parts[0].Text != "" {
+			text := event.Content.Parts[0].Text
+			if len(text) > 100 {
+				contentPreview = text[:100] + "..."
+			} else {
+				contentPreview = text
+			}
+		}
+	}
+	log.Printf("INFO: AppendEvent called for session %s, author=%s, role=%s, content preview: %s",
+		sess.ID(), event.Author, event.Content.Role, contentPreview)
+
 	// Get current state from the session
 	stateMap := make(map[string]any)
 	for k, v := range sess.State().All() {
@@ -339,9 +354,12 @@ func (s *FirestoreService) AppendEvent(ctx context.Context, sess session.Session
 	if event.Content != nil {
 		if b, err := json.Marshal(event.Content); err == nil {
 			contentJSON = string(b)
+			log.Printf("INFO: Successfully serialized event content to JSON, length=%d bytes", len(contentJSON))
 		} else {
-			log.Printf("Warning: failed to marshal event content: %v", err)
+			log.Printf("ERROR: Failed to marshal event content: %v", err)
 		}
+	} else {
+		log.Printf("WARN: Event has nil Content, no JSON will be stored")
 	}
 
 	// Store event
@@ -356,8 +374,11 @@ func (s *FirestoreService) AppendEvent(ctx context.Context, sess session.Session
 
 	_, _, err = docRef.Collection(eventsCollection).Add(ctx, eventDoc)
 	if err != nil {
+		log.Printf("ERROR: Failed to append event to Firestore for session %s: %v", sess.ID(), err)
 		return fmt.Errorf("failed to append event: %w", err)
 	}
+
+	log.Printf("INFO: Successfully appended event to Firestore for session %s (author=%s)", sess.ID(), event.Author)
 
 	// Update in-memory events so the ADK runner sees the new event
 	// during the same invocation (ContentsRequestProcessor reads from session.Events()).
@@ -370,22 +391,27 @@ func (s *FirestoreService) AppendEvent(ctx context.Context, sess session.Session
 
 // getEvents retrieves all events for a session.
 func (s *FirestoreService) getEvents(ctx context.Context, sessionDoc *firestore.DocumentRef) (*FirestoreEvents, error) {
+	log.Printf("INFO: getEvents called for session document: %s", sessionDoc.Path)
+
 	eventsIter := sessionDoc.Collection(eventsCollection).OrderBy("timestamp", firestore.Asc).Documents(ctx)
 	defer eventsIter.Stop()
 
 	var events []*session.Event
+	retrievedCount := 0
 	for {
 		doc, err := eventsIter.Next()
 		if err == iterator.Done {
 			break
 		}
 		if err != nil {
+			log.Printf("ERROR: Failed to iterate events for session %s: %v", sessionDoc.Path, err)
 			return nil, fmt.Errorf("failed to iterate events: %w", err)
 		}
 
+		retrievedCount++
 		var eventDoc EventDocument
 		if err := doc.DataTo(&eventDoc); err != nil {
-			log.Printf("Warning: failed to decode event document: %v", err)
+			log.Printf("WARN: Failed to decode event document %d for session %s: %v", retrievedCount, sessionDoc.Path, err)
 			continue
 		}
 
@@ -400,13 +426,20 @@ func (s *FirestoreService) getEvents(ctx context.Context, sessionDoc *firestore.
 			var content genai.Content
 			if err := json.Unmarshal([]byte(contentStr), &content); err == nil {
 				event.Content = &content
+				log.Printf("INFO: Successfully restored event %d: author=%s, role=%s, timestamp=%v",
+					retrievedCount, event.Author, content.Role, event.Timestamp)
 			} else {
-				log.Printf("Warning: failed to unmarshal event content: %v", err)
+				log.Printf("WARN: Failed to unmarshal event content for event %d (session %s): %v", retrievedCount, sessionDoc.Path, err)
 			}
+		} else {
+			log.Printf("WARN: Event %d has empty or non-string content (session %s)", retrievedCount, sessionDoc.Path)
 		}
 
 		events = append(events, event)
 	}
+
+	log.Printf("INFO: getEvents completed for session %s: retrieved %d events, returning %d valid events",
+		sessionDoc.Path, retrievedCount, len(events))
 
 	return NewFirestoreEvents(events), nil
 }
