@@ -244,13 +244,19 @@ export default function Home() {
 			return;
 		}
 
+		// New photo upload starts a new agent session
+		const newSessionId = generateSessionId();
+		setCurrentSessionId(newSessionId);
+		setMessages([initialMessage]);
+		setPhotoSession(null);
+
 		setIsUploading(true);
 
 		try {
 			const originalPreview = URL.createObjectURL(file);
 			const formData = new FormData();
 			formData.append("image", file);
-			formData.append("sessionId", currentSessionId);
+			formData.append("sessionId", newSessionId);
 			if (user) {
 				formData.append("userId", user.uid);
 			}
@@ -387,8 +393,8 @@ export default function Home() {
 			// Sync with Firestore if logged in
 			if (user) {
 				try {
-					await createSession(user.uid, currentSessionId, newMessage);
-					await updateSessionMetadata(currentSessionId, {
+					await createSession(user.uid, newSessionId, newMessage);
+					await updateSessionMetadata(newSessionId, {
 						title: safeAnalysis.photoSummary,
 						overallScore: safeAnalysis.overallScore,
 						photoUrl: data.enhancedImageUrl,
