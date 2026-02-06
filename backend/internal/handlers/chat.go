@@ -144,17 +144,22 @@ func resolveSessionID(ctx context.Context, sessionService session.Service, appNa
 		UserID:  userID,
 	})
 	if err != nil {
+		log.Printf("ERROR: Failed to list sessions for user %s, app %s: %v", userID, appName, err)
 		// If listing fails, try to create a new session
 		if createResponse, createErr := sessionService.Create(ctx, &session.CreateRequest{
 			AppName: appName,
 			UserID:  userID,
+			State: map[string]any{
+				"frontend_session_id": sessionID,
+			},
 		}); createErr == nil {
 			newSessionID := createResponse.Session.ID()
 			if strings.TrimSpace(newSessionID) != "" {
+				log.Printf("WARN: Created fallback session %s for user %s (list failed)", newSessionID, userID)
 				return newSessionID, nil
 			}
 		}
-		return "", err
+		return "", fmt.Errorf("failed to list sessions for user %s: %w", userID, err)
 	}
 
 	// If a specific sessionId was provided, look for a matching session
