@@ -114,7 +114,24 @@ func chatWithAgent(ctx context.Context, deps *Dependencies, userID, sessionID, m
 			genai.NewPartFromURI(imageURL, "image/jpeg"),
 		}
 		content = genai.NewContentFromParts(parts, genai.RoleUser)
-	} else {
+	} else if sessResp, err := deps.SessionService.Get(ctx, &session.GetRequest{
+		AppName:   "photo_levelup",
+		UserID:    userID,
+		SessionID: resolvedSessionID,
+	}); err == nil {
+		// If no new image was provided, attach the original analyzed image
+		if origURL, err := sessResp.Session.State().Get("original_image_url"); err == nil {
+			if urlStr, ok := origURL.(string); ok && urlStr != "" {
+				parts := []*genai.Part{
+					genai.NewPartFromText(enrichedMessage),
+					genai.NewPartFromURI(urlStr, "image/jpeg"),
+				}
+				content = genai.NewContentFromParts(parts, genai.RoleUser)
+				log.Printf("INFO: Attached original image to follow-up chat for session %s", resolvedSessionID)
+			}
+		}
+	}
+	if content == nil {
 		content = genai.NewContentFromText(enrichedMessage, genai.RoleUser)
 	}
 	for event, err := range runner.Run(ctx, userID, resolvedSessionID, content, agent.RunConfig{}) {

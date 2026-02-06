@@ -15,6 +15,7 @@ import (
 
 	"github.com/google/uuid"
 	"google.golang.org/adk/session"
+	"google.golang.org/genai"
 
 	"github.com/matsuvr/photo_levelup_agent/backend/internal/services"
 )
@@ -162,6 +163,11 @@ func (h *AnalyzeHandler) processAnalysis(jobID, userID, sessionID string, imageD
 		if err := updateSessionState(ctx, h.deps.SessionService, userID, resolvedSessionID, stateUpdates); err != nil {
 			log.Printf("WARN: Job %s - Failed to update session state: %v", jobID, err)
 		}
+
+		// Seed conversation events so the ADK runner sees prior context
+		if err := seedAnalysisEvents(ctx, h.deps.SessionService, userID, resolvedSessionID, imageURL, analysis); err != nil {
+			log.Printf("WARN: Job %s - Failed to seed analysis events: %v", jobID, err)
+		}
 	}
 
 	// Mark as completed
@@ -308,6 +314,49 @@ func buildImageProxyURL(baseURL string, objectName string) (string, error) {
 // StateUpdater is an optional interface for session services that support direct state updates.
 type StateUpdater interface {
 	UpdateState(ctx context.Context, appName, userID, sessionID string, updates map[string]any) error
+}
+
+// seedAnalysisEvents injects synthetic user+model events into the session so
+// the ADK runner replays them as conversation history on follow-up chats.
+func seedAnalysisEvents(ctx context.Context, sessionService session.Service, userID, resolvedSessionID, imageURL string, analysis *services.AnalysisResult) error {
+	sessResp, err := sessionService.Get(ctx, &session.GetRequest{
+		AppName:   "photo_levelup",
+		UserID:    userID,
+		SessionID: resolvedSessionID,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to get session for seeding events: %w", err)
+	}
+	sess := sessResp.Session
+
+	invocationID := uuid.New().String()
+
+	// 1. User event: "analyze this photo"
+	userEvent := session.NewEvent(invocationID)
+	userEvent.Author = "user"
+	userEvent.Content = genai.NewContentFromParts([]*genai.Part{
+		genai.NewPartFromText("この写真を分析して改善点を教えてください"),
+		genai.NewPartFromURI(imageURL, "image/jpeg"),
+	}, genai.RoleUser)
+
+	if err := sessionService.AppendEvent(ctx, sess, userEvent); err != nil {
+		return fmt.Errorf("failed to append user event: %w", err)
+	}
+
+	// 2. Model event: analysis summary
+	summary := fmt.Sprintf("写真を分析しました。\n\n**%s**\n総合スコア: %d/10\n\n%s",
+		analysis.PhotoSummary, analysis.OverallScore, analysis.Summary)
+
+	modelEvent := session.NewEvent(invocationID)
+	modelEvent.Author = "photo_coach"
+	modelEvent.Content = genai.NewContentFromText(summary, genai.RoleModel)
+
+	if err := sessionService.AppendEvent(ctx, sess, modelEvent); err != nil {
+		return fmt.Errorf("failed to append model event: %w", err)
+	}
+
+	log.Printf("INFO: Seeded analysis events for session %s", resolvedSessionID)
+	return nil
 }
 
 func updateSessionState(ctx context.Context, sessionService session.Service, userID, sessionID string, updates map[string]any) error {
