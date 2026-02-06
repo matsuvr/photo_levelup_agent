@@ -149,12 +149,35 @@ func (h *AnalyzeHandler) processAnalysis(jobID, userID, sessionID string, imageD
 			log.Printf("WARN: Job %s - Failed to marshal analysis: %v", jobID, err)
 		}
 
+		// Extract object name from gs:// URL for original image
+		// Format: gs://bucket/object/name -> object/name
+		originalObjectName := ""
+		if strings.HasPrefix(imageURL, "gs://") {
+			parts := strings.SplitN(imageURL, "/", 4)
+			if len(parts) == 4 {
+				originalObjectName = parts[3]
+			}
+		}
+
+		// Build HTTP proxy URL for original image
+		originalImageProxyURL := ""
+		if originalObjectName != "" {
+			if proxyURL, err := buildImageProxyURL(baseURL, originalObjectName); err == nil {
+				originalImageProxyURL = proxyURL
+			} else {
+				log.Printf("WARN: Job %s - Failed to build proxy URL for original image: %v", jobID, err)
+			}
+		}
+
 		stateUpdates := map[string]any{
 			"enhanced_image_url":  enhancedURL,
-			"original_image_url":  imageURL,
 			"frontend_session_id": sessionID,
 			"overall_score":       analysis.OverallScore,
 			"title":               analysis.PhotoSummary,
+		}
+		// Only set original_image_url if we successfully built the proxy URL
+		if originalImageProxyURL != "" {
+			stateUpdates["original_image_url"] = originalImageProxyURL
 		}
 		if analysisJSON != nil {
 			stateUpdates["analysis_result"] = string(analysisJSON)
