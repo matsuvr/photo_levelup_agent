@@ -55,7 +55,7 @@ func (s *FirestoreState) Get(key string) (any, error) {
 	if val, ok := s.data[key]; ok {
 		return val, nil
 	}
-	return nil, session.ErrStateKeyNotExist
+	return nil, fmt.Errorf("key '%s' not found in session state: %w", key, session.ErrStateKeyNotExist)
 }
 
 func (s *FirestoreState) Set(key string, value any) error {

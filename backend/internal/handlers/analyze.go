@@ -14,10 +14,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/runner"
 	"google.golang.org/adk/session"
-	"google.golang.org/genai"
 
 	"github.com/matsuvr/photo_levelup_agent/backend/internal/services"
 )
@@ -219,45 +216,18 @@ func (h *AnalyzeStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 }
 
 func analyzeWithAgent(ctx context.Context, deps *Dependencies, userID, sessionID string, imageURL string) (*services.AnalysisResult, error) {
-	runner, err := runner.New(runner.Config{
-		AppName:        "photo_levelup",
-		Agent:          deps.Agent,
-		SessionService: deps.SessionService,
-	})
+	log.Printf("INFO: Starting direct image analysis for user %s, session %s", userID, sessionID)
+
+	// Call Gemini API directly for reliable image analysis
+	geminiClient := services.NewGeminiClient()
+	result, err := geminiClient.AnalyzeImage(ctx, imageURL)
 	if err != nil {
-		return nil, err
+		log.Printf("ERROR: Direct image analysis failed: %v", err)
+		return nil, fmt.Errorf("画像分析に失敗しました: %w", err)
 	}
 
-	resolvedSessionID, err := resolveSessionID(ctx, deps.SessionService, "photo_levelup", userID, sessionID)
-	if err != nil {
-		return nil, err
-	}
-
-	content := genai.NewContentFromText(fmt.Sprintf("analyze_photo ツールを使って次の写真を分析してください。画像URL: %s", imageURL), genai.RoleUser)
-	log.Printf("INFO: Starting agent run for user %s, session %s (resolved: %s)", userID, sessionID, resolvedSessionID)
-	for event, err := range runner.Run(ctx, userID, resolvedSessionID, content, agent.RunConfig{}) {
-		if err != nil {
-			log.Printf("ERROR: Agent run error: %v", err)
-			return nil, err
-		}
-
-		log.Printf("DEBUG: Agent event received. IsFinal: %v", event.IsFinalResponse())
-		if event.Content != nil {
-			log.Printf("DEBUG: Agent content: %s", extractText(event.Content))
-		}
-
-		if event == nil || !event.IsFinalResponse() {
-			continue
-		}
-		analysis, err := extractAnalysisFromState(ctx, deps.SessionService, userID, resolvedSessionID)
-		if err != nil {
-			log.Printf("ERROR: Failed to extract analysis from state: %v", err)
-			return nil, err
-		}
-		return analysis, nil
-	}
-
-	return nil, errors.New("analysis result missing")
+	log.Printf("INFO: Direct image analysis completed successfully for user %s, session %s", userID, sessionID)
+	return result, nil
 }
 
 func generateEnhancedImage(
@@ -287,40 +257,6 @@ func generateEnhancedImage(
 	}
 
 	return buildImageProxyURL(baseURL, objectName)
-}
-
-func extractAnalysisFromState(
-	ctx context.Context,
-	sessionService session.Service,
-	userID string,
-	resolvedSessionID string,
-) (*services.AnalysisResult, error) {
-	response, err := sessionService.Get(ctx, &session.GetRequest{
-		AppName:   "photo_levelup",
-		UserID:    userID,
-		SessionID: resolvedSessionID,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	stored, err := response.Session.State().Get("analysis_result")
-	if err != nil {
-		// Log available keys for debugging
-		log.Printf("ERROR: analysis_result key not found in state. Error: %v", err)
-		return nil, err
-	}
-	value, ok := stored.(string)
-	if !ok || strings.TrimSpace(value) == "" {
-		log.Printf("ERROR: analysis_result is empty or invalid type: %T", stored)
-		return nil, errors.New("analysis_result is empty")
-	}
-
-	var analysis services.AnalysisResult
-	if err := json.Unmarshal([]byte(value), &analysis); err != nil {
-		return nil, fmt.Errorf("analysis_result parse failed: %w", err)
-	}
-	return &analysis, nil
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
