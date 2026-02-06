@@ -137,7 +137,10 @@ func (h *AnalyzeHandler) processAnalysis(jobID, userID, sessionID string, imageD
 	}
 
 	// Update session state with all analysis data
-	resolvedSessionID, _ := resolveSessionID(ctx, h.deps.SessionService, "photo_levelup", userID, sessionID)
+	resolvedSessionID, resolveErr := resolveSessionID(ctx, h.deps.SessionService, "photo_levelup", userID, sessionID)
+	if resolveErr != nil {
+		log.Printf("ERROR: Job %s - Failed to resolve session ID for user %s, session %s: %v", jobID, userID, sessionID, resolveErr)
+	}
 	if resolvedSessionID != "" {
 		// Serialize analysis result to JSON
 		analysisJSON, err := json.Marshal(analysis)

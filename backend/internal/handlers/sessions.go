@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -79,7 +80,8 @@ func (h *SessionsHandler) listUserSessions(ctx context.Context, userID string) (
 		UserID:  userID,
 	})
 	if err != nil {
-		return []SessionInfo{}, nil // Return empty list if no sessions
+		log.Printf("ERROR: Failed to list sessions for user %s: %v", userID, err)
+		return []SessionInfo{}, nil // Return empty list on error (graceful degradation)
 	}
 
 	sessions := make([]SessionInfo, 0, len(listResponse.Sessions))
