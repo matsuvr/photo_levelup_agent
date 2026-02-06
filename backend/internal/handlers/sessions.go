@@ -260,9 +260,12 @@ func (h *SessionDetailHandler) getSessionDetail(ctx context.Context, userID, ses
 
 	// Extract messages from events
 	events := sess.Events()
+	log.Printf("INFO: getSessionDetail for session %s: found %d events", sessionID, events.Len())
+
 	for i := 0; i < events.Len(); i++ {
 		event := events.At(i)
 		if event.Content == nil {
+			log.Printf("WARN: Event %d in session %s has nil Content, skipping", i, sessionID)
 			continue
 		}
 
@@ -292,10 +295,14 @@ func (h *SessionDetailHandler) getSessionDetail(ctx context.Context, userID, ses
 				Timestamp: event.Timestamp,
 			}
 			detail.Messages = append(detail.Messages, msg)
+			log.Printf("INFO: Added message %d to session %s: role=%s, content length=%d", len(detail.Messages), sessionID, role, len(content))
+		} else {
+			log.Printf("WARN: Event %d in session %s has empty content text, skipping", i, sessionID)
 		}
 	}
 
 	detail.MessageCount = len(detail.Messages)
+	log.Printf("INFO: getSessionDetail for session %s: returning %d messages", sessionID, detail.MessageCount)
 
 	return detail, nil
 }
