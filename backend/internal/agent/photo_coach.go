@@ -42,6 +42,11 @@ const systemInstruction = `あなたは写真指導の専門家AIアシスタン
 - original_image_url: アップロードされた元画像のURL
 - analysis_result: 分析結果のJSON
 これらの状態を参照して、一貫性のあるアドバイスを提供してください。
+
+## フォローアップ対応
+- 既にユーザーの写真を分析済みで会話が始まっている場合、自己紹介は不要です
+- 分析結果や過去の会話を参照して、質問に直接回答してください
+- 元画像と添削結果を踏まえた具体的なアドバイスを提供してください
 `
 
 func NewPhotoCoachAgent(ctx context.Context) (agent.Agent, error) {
