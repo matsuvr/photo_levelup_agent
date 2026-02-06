@@ -3,6 +3,7 @@ package session
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"iter"
 	"log"
@@ -12,6 +13,7 @@ import (
 	"cloud.google.com/go/firestore"
 	"google.golang.org/adk/session"
 	"google.golang.org/api/iterator"
+	"google.golang.org/genai"
 )
 
 const (
@@ -332,12 +334,23 @@ func (s *FirestoreService) AppendEvent(ctx context.Context, sess session.Session
 		return fmt.Errorf("failed to update session: %w", err)
 	}
 
+	// Serialize content to JSON for persistence
+	var contentJSON string
+	if event.Content != nil {
+		if b, err := json.Marshal(event.Content); err == nil {
+			contentJSON = string(b)
+		} else {
+			log.Printf("Warning: failed to marshal event content: %v", err)
+		}
+	}
+
 	// Store event
 	eventDoc := EventDocument{
 		ID:           event.ID,
 		InvocationID: event.InvocationID,
 		Author:       event.Author,
 		Branch:       event.Branch,
+		Content:      contentJSON,
 		Timestamp:    event.Timestamp,
 	}
 
@@ -375,6 +388,16 @@ func (s *FirestoreService) getEvents(ctx context.Context, sessionDoc *firestore.
 		event.Author = eventDoc.Author
 		event.Branch = eventDoc.Branch
 		event.Timestamp = eventDoc.Timestamp
+
+		// Restore content from stored JSON
+		if contentStr, ok := eventDoc.Content.(string); ok && contentStr != "" {
+			var content genai.Content
+			if err := json.Unmarshal([]byte(contentStr), &content); err == nil {
+				event.Content = &content
+			} else {
+				log.Printf("Warning: failed to unmarshal event content: %v", err)
+			}
+		}
 
 		events = append(events, event)
 	}

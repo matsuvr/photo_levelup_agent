@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -79,16 +81,41 @@ func chatWithAgent(ctx context.Context, deps *Dependencies, userID, sessionID, m
 		return "", err
 	}
 
+	// Enrich message with analysis context from session state so the agent
+	// can answer follow-up questions about the analyzed photo.
+	enrichedMessage := message
+	if sessResp, err := deps.SessionService.Get(ctx, &session.GetRequest{
+		AppName:   "photo_levelup",
+		UserID:    userID,
+		SessionID: resolvedSessionID,
+	}); err == nil {
+		state := sessResp.Session.State()
+		analysisJSON, analysisErr := state.Get("analysis_result")
+		if analysisErr == nil {
+			var contextLines []string
+			if title, err := state.Get("title"); err == nil {
+				contextLines = append(contextLines, fmt.Sprintf("写真タイトル: %v", title))
+			}
+			if score, err := state.Get("overall_score"); err == nil {
+				contextLines = append(contextLines, fmt.Sprintf("総合スコア: %v/10", score))
+			}
+			contextLines = append(contextLines, fmt.Sprintf("分析結果JSON: %v", analysisJSON))
+			enrichedMessage = fmt.Sprintf("[この写真セッションの分析コンテキスト]\n%s\n\n[ユーザーの質問]\n%s",
+				strings.Join(contextLines, "\n"), message)
+			log.Printf("INFO: Enriched chat message with analysis context for session %s", resolvedSessionID)
+		}
+	}
+
 	var content *genai.Content
 	if imageURL != "" {
 		// Include image with message
 		parts := []*genai.Part{
-			genai.NewPartFromText(message),
+			genai.NewPartFromText(enrichedMessage),
 			genai.NewPartFromURI(imageURL, "image/jpeg"),
 		}
 		content = genai.NewContentFromParts(parts, genai.RoleUser)
 	} else {
-		content = genai.NewContentFromText(message, genai.RoleUser)
+		content = genai.NewContentFromText(enrichedMessage, genai.RoleUser)
 	}
 	for event, err := range runner.Run(ctx, userID, resolvedSessionID, content, agent.RunConfig{}) {
 		if err != nil {
