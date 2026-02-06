@@ -359,6 +359,12 @@ func (s *FirestoreService) AppendEvent(ctx context.Context, sess session.Session
 		return fmt.Errorf("failed to append event: %w", err)
 	}
 
+	// Update in-memory events so the ADK runner sees the new event
+	// during the same invocation (ContentsRequestProcessor reads from session.Events()).
+	if fSess, ok := sess.(*FirestoreSession); ok {
+		fSess.events.events = append(fSess.events.events, event)
+	}
+
 	return nil
 }
 

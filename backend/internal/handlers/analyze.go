@@ -165,7 +165,7 @@ func (h *AnalyzeHandler) processAnalysis(jobID, userID, sessionID string, imageD
 		}
 
 		// Seed conversation events so the ADK runner sees prior context
-		if err := seedAnalysisEvents(ctx, h.deps.SessionService, userID, resolvedSessionID, imageURL, analysis); err != nil {
+		if err := seedAnalysisEvents(ctx, h.deps.SessionService, userID, resolvedSessionID, analysis); err != nil {
 			log.Printf("WARN: Job %s - Failed to seed analysis events: %v", jobID, err)
 		}
 	}
@@ -318,7 +318,7 @@ type StateUpdater interface {
 
 // seedAnalysisEvents injects synthetic user+model events into the session so
 // the ADK runner replays them as conversation history on follow-up chats.
-func seedAnalysisEvents(ctx context.Context, sessionService session.Service, userID, resolvedSessionID, imageURL string, analysis *services.AnalysisResult) error {
+func seedAnalysisEvents(ctx context.Context, sessionService session.Service, userID, resolvedSessionID string, analysis *services.AnalysisResult) error {
 	sessResp, err := sessionService.Get(ctx, &session.GetRequest{
 		AppName:   "photo_levelup",
 		UserID:    userID,
@@ -331,13 +331,11 @@ func seedAnalysisEvents(ctx context.Context, sessionService session.Service, use
 
 	invocationID := uuid.New().String()
 
-	// 1. User event: "analyze this photo"
+	// 1. User event: "analyze this photo" (text only; gs:// URIs are not
+	//    accessible to the Gemini API via API key)
 	userEvent := session.NewEvent(invocationID)
 	userEvent.Author = "user"
-	userEvent.Content = genai.NewContentFromParts([]*genai.Part{
-		genai.NewPartFromText("この写真を分析して改善点を教えてください"),
-		genai.NewPartFromURI(imageURL, "image/jpeg"),
-	}, genai.RoleUser)
+	userEvent.Content = genai.NewContentFromText("この写真を分析して改善点を教えてください", genai.RoleUser)
 
 	if err := sessionService.AppendEvent(ctx, sess, userEvent); err != nil {
 		return fmt.Errorf("failed to append user event: %w", err)
