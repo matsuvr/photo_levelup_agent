@@ -33,6 +33,7 @@ import {
 type PhotoSession = {
 	originalPreview: string;
 	enhancedPreview: string;
+	cleanEnhancedPreview?: string;
 	analysis: AnalysisResult;
 };
 
@@ -325,6 +326,7 @@ export default function Home() {
 
 			const pollForResult = async (): Promise<{
 				enhancedImageUrl: string;
+				cleanEnhancedImageUrl?: string;
 				analysis: AnalysisResult;
 				initialAdvice: string;
 			} | null> => {
@@ -368,6 +370,7 @@ export default function Home() {
 			const sessionData: PhotoSession = {
 				originalPreview,
 				enhancedPreview: data.enhancedImageUrl,
+				cleanEnhancedPreview: data.cleanEnhancedImageUrl,
 				analysis: safeAnalysis,
 			};
 
@@ -382,6 +385,7 @@ export default function Home() {
 				photoCard: {
 					original: originalPreview,
 					enhanced: data.enhancedImageUrl,
+					cleanEnhanced: data.cleanEnhancedImageUrl,
 				},
 				analysisCard: safeAnalysis,
 			};
@@ -647,10 +651,30 @@ export default function Home() {
 								<SwipeableTabs activeTab={activeTab} onTabChange={setActiveTab}>
 									<div className="tab-content">
 										{activeTab === "photo" ? (
-											<BeforeAfterSlider
-												beforeSrc={photoSession.originalPreview}
-												afterSrc={photoSession.enhancedPreview}
-											/>
+											<>
+												<BeforeAfterSlider
+													beforeSrc={photoSession.originalPreview}
+													afterSrc={photoSession.enhancedPreview}
+												/>
+												<div className="download-row">
+													<DownloadButton
+														url={photoSession.originalPreview}
+														label="元画像"
+													/>
+													<DownloadButton
+														url={photoSession.enhancedPreview}
+														label="添削入り"
+													/>
+													{isValidImageUrl(
+														photoSession.cleanEnhancedPreview,
+													) && (
+														<DownloadButton
+															url={photoSession.cleanEnhancedPreview}
+															label="お手本"
+														/>
+													)}
+												</div>
+											</>
 										) : (
 											// biome-ignore lint/a11y/useSemanticElements: Content includes interactive elements
 											<div
@@ -810,19 +834,50 @@ export default function Home() {
 						isValidImageUrl(photoSession.enhancedPreview) && (
 							<div className="sidebar-section">
 								<h2>写真比較</h2>
-								<div className="photo-grid">
+								<div
+									className={`photo-grid ${isValidImageUrl(photoSession.cleanEnhancedPreview) ? "three-col" : ""}`}
+								>
 									<div className="photo-item">
 										<span className="photo-label">元</span>
 										<div className="preview">
 											<img src={photoSession.originalPreview} alt="Original" />
 										</div>
-									</div>
-									<div className="photo-item">
-										<span className="photo-label">生成</span>
-										<div className="preview">
-											<img src={photoSession.enhancedPreview} alt="Enhanced" />
+										<div className="photo-item-actions">
+											<DownloadButton
+												url={photoSession.originalPreview}
+												label="元画像"
+											/>
 										</div>
 									</div>
+									<div className="photo-item">
+										<span className="photo-label">添削</span>
+										<div className="preview">
+											<img src={photoSession.enhancedPreview} alt="Annotated" />
+										</div>
+										<div className="photo-item-actions">
+											<DownloadButton
+												url={photoSession.enhancedPreview}
+												label="添削入り"
+											/>
+										</div>
+									</div>
+									{isValidImageUrl(photoSession.cleanEnhancedPreview) && (
+										<div className="photo-item">
+											<span className="photo-label">お手本</span>
+											<div className="preview">
+												<img
+													src={photoSession.cleanEnhancedPreview}
+													alt="Enhanced"
+												/>
+											</div>
+											<div className="photo-item-actions">
+												<DownloadButton
+													url={photoSession.cleanEnhancedPreview}
+													label="お手本"
+												/>
+											</div>
+										</div>
+									)}
 								</div>
 							</div>
 						)}
@@ -920,6 +975,37 @@ export default function Home() {
 }
 
 // ============ Components ============
+
+function DownloadButton({ url, label }: { url: string; label: string }) {
+	const downloadUrl = url.includes("?")
+		? `${url}&download=true`
+		: `${url}?download=true`;
+	return (
+		<a
+			href={downloadUrl}
+			download
+			className="download-button"
+			title={`${label}をダウンロード`}
+			aria-label={`${label}をダウンロード`}
+		>
+			<span className="sr-only">{label}をダウンロード</span>
+			<svg
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="2"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+				style={{ width: 14, height: 14 }}
+				aria-hidden="true"
+			>
+				<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+				<polyline points="7 10 12 15 17 10" />
+				<line x1="12" y1="15" x2="12" y2="3" />
+			</svg>
+		</a>
+	);
+}
 
 type RadarChartItem = {
 	label: string;
