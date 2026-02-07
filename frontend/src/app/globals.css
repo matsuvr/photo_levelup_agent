@@ -23,6 +23,18 @@
 	font-family: "Noto Sans JP", system-ui, sans-serif;
 }
 
+.sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border-width: 0;
+}
+
 * {
 	box-sizing: border-box;
 	margin: 0;
@@ -1224,8 +1236,18 @@ textarea {
 		gap: 8px;
 	}
 
+	.photo-grid.three-col {
+		grid-template-columns: 1fr 1fr 1fr;
+	}
+
 	.photo-item {
 		position: relative;
+	}
+
+	.photo-item-actions {
+		display: flex;
+		justify-content: center;
+		margin-top: 4px;
 	}
 
 	.photo-label {
@@ -1726,4 +1748,32 @@ textarea {
 		transform: scale(1);
 		opacity: 1;
 	}
+}
+
+/* === Download Button === */
+.download-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	background: var(--bg-tertiary);
+	color: var(--text-secondary);
+	border: 1px solid var(--border);
+	cursor: pointer;
+	text-decoration: none;
+	transition: background 0.2s, color 0.2s;
+}
+
+.download-button:hover {
+	background: var(--accent);
+	color: white;
+}
+
+.download-row {
+	display: flex;
+	justify-content: center;
+	gap: 12px;
+	padding: 8px 0;
 }
