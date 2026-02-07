@@ -129,12 +129,44 @@ func (h *AnalyzeHandler) processAnalysis(jobID, userID, sessionID string, imageD
 		return
 	}
 
-	// Generate enhanced image
-	enhancedURL, err := generateEnhancedImage(ctx, storageClient, imageURL, analysis, baseURL)
-	if err != nil {
-		log.Printf("ERROR: Job %s - Failed to generate enhanced image: %v", jobID, err)
-		jobStore.SetFailed(jobID, err.Error())
+	// Generate enhanced images in parallel (annotated + clean)
+	type imageResult struct {
+		url string
+		err error
+	}
+
+	annotatedCh := make(chan imageResult, 1)
+	cleanCh := make(chan imageResult, 1)
+
+	go func() {
+		url, err := generateEnhancedImage(ctx, storageClient, imageURL, analysis, baseURL)
+		annotatedCh <- imageResult{url, err}
+	}()
+	go func() {
+		url, err := generateCleanEnhancedImage(ctx, storageClient, imageURL, analysis, baseURL)
+		cleanCh <- imageResult{url, err}
+	}()
+
+	annotatedRes := <-annotatedCh
+	cleanRes := <-cleanCh
+
+	// Both failed → job fails
+	if annotatedRes.err != nil && cleanRes.err != nil {
+		log.Printf("ERROR: Job %s - Both image generations failed: annotated=%v, clean=%v", jobID, annotatedRes.err, cleanRes.err)
+		jobStore.SetFailed(jobID, annotatedRes.err.Error())
 		return
+	}
+
+	enhancedURL := annotatedRes.url
+	if annotatedRes.err != nil {
+		log.Printf("WARN: Job %s - Annotated image generation failed, continuing: %v", jobID, annotatedRes.err)
+		enhancedURL = ""
+	}
+
+	cleanEnhancedURL := cleanRes.url
+	if cleanRes.err != nil {
+		log.Printf("WARN: Job %s - Clean image generation failed, continuing: %v", jobID, cleanRes.err)
+		cleanEnhancedURL = ""
 	}
 
 	// Update session state with all analysis data
@@ -179,6 +211,9 @@ func (h *AnalyzeHandler) processAnalysis(jobID, userID, sessionID string, imageD
 		if originalImageProxyURL != "" {
 			stateUpdates["original_image_url"] = originalImageProxyURL
 		}
+		if cleanEnhancedURL != "" {
+			stateUpdates["clean_enhanced_image_url"] = cleanEnhancedURL
+		}
 		if analysisJSON != nil {
 			stateUpdates["analysis_result"] = string(analysisJSON)
 		}
@@ -195,9 +230,10 @@ func (h *AnalyzeHandler) processAnalysis(jobID, userID, sessionID string, imageD
 
 	// Mark as completed
 	result := &AnalyzeResult{
-		EnhancedImageURL: enhancedURL,
-		Analysis:         *analysis,
-		InitialAdvice:    analysis.Summary,
+		EnhancedImageURL:      enhancedURL,
+		CleanEnhancedImageURL: cleanEnhancedURL,
+		Analysis:              *analysis,
+		InitialAdvice:         analysis.Summary,
 	}
 	jobStore.SetCompleted(jobID, result)
 	log.Printf("INFO: Job %s - Completed successfully", jobID)
@@ -291,6 +327,35 @@ func generateEnhancedImage(
 	return buildImageProxyURL(baseURL, objectName)
 }
 
+func generateCleanEnhancedImage(
+	ctx context.Context,
+	storageClient *services.StorageClient,
+	imageURL string,
+	analysis *services.AnalysisResult,
+	baseURL string,
+) (string, error) {
+	geminiClient := services.NewGeminiClient()
+	result, err := geminiClient.EnhancePhotoClean(ctx, services.EnhancementInput{
+		ImageURL: imageURL,
+		Analysis: analysis,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	imageData, err := base64.StdEncoding.DecodeString(result.ImageBase64)
+	if err != nil {
+		return "", err
+	}
+
+	_, objectName, err := storageClient.UploadImageWithPrefix(ctx, imageData, "image/jpeg", "clean_enhanced")
+	if err != nil {
+		return "", err
+	}
+
+	return buildImageProxyURL(baseURL, objectName)
+}
+
 func writeJSON(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -367,6 +432,8 @@ func seedAnalysisEvents(ctx context.Context, sessionService session.Service, use
 	// 2. Model event: analysis summary
 	summary := fmt.Sprintf("写真を分析しました。\n\n**%s**\n総合スコア: %d/10\n\n%s",
 		analysis.PhotoSummary, analysis.OverallScore, analysis.Summary)
+	// Fix markdown bold formatting (** text ** -> **text**)
+	summary = fixMarkdownBold(summary)
 
 	modelEvent := session.NewEvent(invocationID)
 	modelEvent.Author = "photo_coach"

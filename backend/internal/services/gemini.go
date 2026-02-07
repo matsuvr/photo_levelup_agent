@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 
 	"cloud.google.com/go/storage"
@@ -267,7 +268,7 @@ func (g *GeminiClient) CompareAndAdvise(ctx context.Context, originalURL, transf
 		return "", err
 	}
 
-	return strings.TrimSpace(response.Text()), nil
+	return fixMarkdownBold(strings.TrimSpace(response.Text())), nil
 }
 
 func (g *GeminiClient) GenerateImage(ctx context.Context, prompt string) (*ImageGenerationResult, error) {
@@ -307,6 +308,14 @@ func (g *GeminiClient) GenerateImage(ctx context.Context, prompt string) (*Image
 }
 
 func (g *GeminiClient) EnhancePhoto(ctx context.Context, input EnhancementInput) (*ImageGenerationResult, error) {
+	return g.enhancePhotoWithPrompt(ctx, input, buildEnhancementPrompt)
+}
+
+func (g *GeminiClient) EnhancePhotoClean(ctx context.Context, input EnhancementInput) (*ImageGenerationResult, error) {
+	return g.enhancePhotoWithPrompt(ctx, input, buildCleanEnhancementPrompt)
+}
+
+func (g *GeminiClient) enhancePhotoWithPrompt(ctx context.Context, input EnhancementInput, promptBuilder func(EnhancementInput) string) (*ImageGenerationResult, error) {
 	if err := g.Ensure(ctx); err != nil {
 		return nil, err
 	}
@@ -321,7 +330,7 @@ func (g *GeminiClient) EnhancePhoto(ctx context.Context, input EnhancementInput)
 		return nil, fmt.Errorf("failed to fetch image: %w", err)
 	}
 
-	prompt := buildEnhancementPrompt(input)
+	prompt := promptBuilder(input)
 	config := &genai.GenerateContentConfig{ResponseModalities: []string{"IMAGE", "TEXT"}}
 	contents := []*genai.Content{
 		genai.NewContentFromParts([]*genai.Part{
@@ -371,6 +380,20 @@ func buildEnhancementPrompt(input EnhancementInput) string {
 	}
 
 	return fmt.Sprintf("あなたはプロの写真レタッチャー兼講師です。元写真の内容は維持したまま、自然で高品質な改善を行い、コンテスト受賞レベルの仕上がりにしてください。\n\n採点結果と改善提案: %s%s\n\n重要: 生成される画像は「改善後の美しい写真」ですが、そこに「赤ペン先生」のように、改善ポイントや良くなった部分に赤丸や矢印をつけ、手書き風の文字で短いコメント（例:「ここを明るく」「構図を整理」など）を書き込んでください。改善された写真そのものに、直接赤ペンで書き込みが入っている状態の画像を出力してください。\n\n改善ルール:\n1. 被写道の基礎は維持しつつ、プロレベルに仕上げる\n2. 改善ポイントに赤ペンでマルや矢印を入れる\n3. 手書き風の文字でコメントを入れる\n4. 露出、色彩、ライティングを最適化\n\n変換後の写真（赤ペン添削付き）を生成し、変更点を簡潔に説明してください。", analysisDetails, customNotes)
+}
+
+func buildCleanEnhancementPrompt(input EnhancementInput) string {
+	analysisDetails := formatEnhancementAnalysis(input.Analysis)
+	if analysisDetails == "" {
+		analysisDetails = "構図・露出・色彩・ライティングをより洗練されたコンテスト受賞レベルに高めてください。"
+	}
+
+	customNotes := strings.TrimSpace(input.CustomNotes)
+	if customNotes != "" {
+		customNotes = "\n追加の要望: " + customNotes
+	}
+
+	return fmt.Sprintf("あなたはプロの写真レタッチャー兼講師です。元写真の内容は維持したまま、自然で高品質な改善を行い、コンテスト受賞レベルの仕上がりにしてください。\n\n採点結果と改善提案: %s%s\n\n重要: 注釈・文字・矢印・赤ペンなどの書き込みは一切行わないでください。改善された美しい写真のみを出力してください。クリーンで美しい仕上がりの写真だけを生成してください。\n\n改善ルール:\n1. 被写体の基礎は維持しつつ、プロレベルに仕上げる\n2. 露出、色彩、ライティングを最適化\n3. 構図の改善を反映\n4. 文字や注釈は一切入れない\n\n変換後の写真（クリーンな改善版）を生成し、変更点を簡潔に説明してください。", analysisDetails, customNotes)
 }
 
 func formatEnhancementAnalysis(analysis *AnalysisResult) string {
@@ -520,4 +543,16 @@ func analysisResponseSchema() *genai.Schema {
 			"intentClarity",
 		},
 	}
+}
+
+// fixMarkdownBold fixes markdown bold syntax by removing spaces between ** and text.
+// Examples:
+//   - "** text **" -> "**text**"
+//   - "** text * text * text **" -> "**text * text * text**"
+//   - "**text**" -> "**text**" (no change)
+func fixMarkdownBold(text string) string {
+	// Pattern: \*\* matches **, \s+ matches one or more spaces, (.+?) captures content (non-greedy), \s+ matches spaces, \*\* matches **
+	// We need to handle the case where there might be single * inside double **
+	re := regexp.MustCompile(`\*\*\s+(.+?)\s+\*\*`)
+	return re.ReplaceAllString(text, `**$1**`)
 }

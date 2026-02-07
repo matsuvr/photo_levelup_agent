@@ -28,9 +28,10 @@ type Job struct {
 
 // AnalyzeResult is the response structure for completed jobs
 type AnalyzeResult struct {
-	EnhancedImageURL string                  `json:"enhancedImageUrl"`
-	Analysis         services.AnalysisResult `json:"analysis"`
-	InitialAdvice    string                  `json:"initialAdvice"`
+	EnhancedImageURL      string                  `json:"enhancedImageUrl"`
+	CleanEnhancedImageURL string                  `json:"cleanEnhancedImageUrl,omitempty"`
+	Analysis              services.AnalysisResult `json:"analysis"`
+	InitialAdvice         string                  `json:"initialAdvice"`
 }
 
 // JobStore manages async jobs in memory

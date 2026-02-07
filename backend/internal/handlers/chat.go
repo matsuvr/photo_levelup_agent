@@ -132,6 +132,8 @@ func chatWithAgent(ctx context.Context, deps *Dependencies, userID, sessionID, m
 		}
 		text := strings.TrimSpace(extractText(event.Content))
 		if text != "" {
+			// Fix markdown bold formatting (** text ** -> **text**)
+			text = fixMarkdownBold(text)
 			log.Printf("INFO: Completed runner.Run for session %s, saw %d events, returning response: %.100s",
 				resolvedSessionID, eventCount, text)
 			return text, nil
