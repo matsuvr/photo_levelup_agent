@@ -75,6 +75,17 @@ func (h *ImageHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// Extract filename from object path
 		parts := strings.Split(objectName, "/")
 		filename := parts[len(parts)-1]
+		// Add file extension based on content type if missing
+		if !strings.Contains(filename, ".") {
+			ext := ".jpg" // default
+			switch contentType {
+			case "image/png":
+				ext = ".png"
+			case "image/webp":
+				ext = ".webp"
+			}
+			filename += ext
+		}
 		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s_%s"`, prefix, filename))
 	}
 

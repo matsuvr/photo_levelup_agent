@@ -1738,12 +1738,14 @@ textarea {
 }
 
 @keyframes pulse {
+
 	0%,
 	80%,
 	100% {
 		transform: scale(0);
 		opacity: 0.4;
 	}
+
 	40% {
 		transform: scale(1);
 		opacity: 1;
@@ -1755,20 +1757,39 @@ textarea {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 28px;
-	height: 28px;
-	border-radius: 50%;
+	gap: 6px;
+	padding: 6px 12px;
+	border-radius: var(--radius-sm);
 	background: var(--bg-tertiary);
 	color: var(--text-secondary);
 	border: 1px solid var(--border);
 	cursor: pointer;
 	text-decoration: none;
-	transition: background 0.2s, color 0.2s;
+	transition: background 0.2s, color 0.2s, border-color 0.2s;
+	font: inherit;
+	font-size: 12px;
+	font-weight: 500;
+	white-space: nowrap;
 }
 
-.download-button:hover {
+.download-button:hover:not(:disabled) {
 	background: var(--accent);
 	color: white;
+	border-color: var(--accent);
+}
+
+.download-button:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.download-spinner {
+	width: 14px;
+	height: 14px;
+	border: 2px solid var(--border);
+	border-top-color: var(--accent);
+	border-radius: 50%;
+	animation: spin 0.8s linear infinite;
 }
 
 .download-row {

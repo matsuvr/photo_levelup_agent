@@ -977,33 +977,103 @@ export default function Home() {
 // ============ Components ============
 
 function DownloadButton({ url, label }: { url: string; label: string }) {
-	const downloadUrl = url.includes("?")
-		? `${url}&download=true`
-		: `${url}?download=true`;
+	const [downloading, setDownloading] = useState(false);
+
+	const handleDownload = async () => {
+		if (downloading) return;
+		setDownloading(true);
+
+		try {
+			// For blob: URLs (local previews), download directly
+			if (url.startsWith("blob:")) {
+				const res = await fetch(url);
+				const blob = await res.blob();
+				const blobUrl = URL.createObjectURL(blob);
+				const a = document.createElement("a");
+				a.href = blobUrl;
+				a.download = `${label}.jpg`;
+				document.body.appendChild(a);
+				a.click();
+				document.body.removeChild(a);
+				URL.revokeObjectURL(blobUrl);
+				return;
+			}
+
+			// Extract object parameter from backend proxy URL
+			let objectParam: string | null = null;
+			try {
+				const parsed = new URL(url, window.location.origin);
+				objectParam = parsed.searchParams.get("object");
+			} catch {
+				// not a valid URL with object param
+			}
+
+			if (objectParam) {
+				// Use same-origin proxy to avoid cross-origin download issues
+				const proxyUrl = `/api/image?object=${encodeURIComponent(objectParam)}`;
+				const res = await fetch(proxyUrl);
+				if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+				const blob = await res.blob();
+				const blobUrl = URL.createObjectURL(blob);
+
+				// Extract filename from Content-Disposition if available
+				let filename = `${label}.jpg`;
+				const disposition = res.headers.get("content-disposition");
+				if (disposition) {
+					const match = disposition.match(/filename="?([^";\s]+)"?/);
+					if (match) filename = match[1];
+				}
+
+				const a = document.createElement("a");
+				a.href = blobUrl;
+				a.download = filename;
+				document.body.appendChild(a);
+				a.click();
+				document.body.removeChild(a);
+				URL.revokeObjectURL(blobUrl);
+			} else {
+				// Fallback: open in new tab
+				window.open(url, "_blank");
+			}
+		} catch (error) {
+			secureLog.error("Download failed:", error);
+			// Fallback: open in new tab
+			window.open(url, "_blank");
+		} finally {
+			setDownloading(false);
+		}
+	};
+
 	return (
-		<a
-			href={downloadUrl}
-			download
-			className="download-button"
+		<button
+			type="button"
+			onClick={handleDownload}
+			disabled={downloading}
+			className={`download-button${downloading ? " downloading" : ""}`}
 			title={`${label}をダウンロード`}
 			aria-label={`${label}をダウンロード`}
 		>
-			<span className="sr-only">{label}をダウンロード</span>
-			<svg
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				strokeWidth="2"
-				strokeLinecap="round"
-				strokeLinejoin="round"
-				style={{ width: 14, height: 14 }}
-				aria-hidden="true"
-			>
-				<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-				<polyline points="7 10 12 15 17 10" />
-				<line x1="12" y1="15" x2="12" y2="3" />
-			</svg>
-		</a>
+			<span className="download-label">{label}</span>
+			{downloading ? (
+				<span className="download-spinner" />
+			) : (
+				<svg
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					strokeWidth="2"
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					style={{ width: 14, height: 14 }}
+					aria-hidden="true"
+				>
+					<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+					<polyline points="7 10 12 15 17 10" />
+					<line x1="12" y1="15" x2="12" y2="3" />
+				</svg>
+			)}
+		</button>
 	);
 }
 
