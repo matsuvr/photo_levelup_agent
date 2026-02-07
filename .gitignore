@@ -106,3 +106,6 @@ gcp-key.json
 
 # Deployment docs (confidential)
 backend/DEPLOY_MANUAL.md
+
+# Development scripts with personal info
+scripts/cleanup_dev_data.go
