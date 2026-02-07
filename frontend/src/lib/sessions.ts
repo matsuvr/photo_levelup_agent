@@ -22,7 +22,7 @@ export type ChatMessage = {
 	content: string;
 	timestamp: Timestamp;
 	analysisCard?: AnalysisResult;
-	photoCard?: { original: string; enhanced: string };
+	photoCard?: { original: string; enhanced: string; cleanEnhanced?: string };
 };
 
 export type AnalysisResult = {
@@ -55,6 +55,7 @@ export type Session = {
 	overallScore?: number;
 	photoUrl?: string;
 	originalPhotoUrl?: string;
+	cleanEnhancedPhotoUrl?: string;
 	messages: ChatMessage[];
 	messageCount?: number;
 };
@@ -182,6 +183,7 @@ type BackendSessionInfo = {
 	overallScore?: number;
 	photoUrl?: string;
 	originalPhotoUrl?: string;
+	cleanEnhancedPhotoUrl?: string;
 	messageCount: number;
 };
 
@@ -203,12 +205,16 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
 		const sessionResults = await Promise.allSettled(
 			(data.sessions || []).map(async (backendSession): Promise<Session> => {
 				// Resolve URLs with individual error handling - don't let one failure block others
-				const [photoUrl, originalPhotoUrl] = await Promise.all([
-					resolveStorageUrl(backendSession.photoUrl).catch(() => undefined),
-					resolveStorageUrl(backendSession.originalPhotoUrl).catch(
-						() => undefined,
-					),
-				]);
+				const [photoUrl, originalPhotoUrl, cleanEnhancedPhotoUrl] =
+					await Promise.all([
+						resolveStorageUrl(backendSession.photoUrl).catch(() => undefined),
+						resolveStorageUrl(backendSession.originalPhotoUrl).catch(
+							() => undefined,
+						),
+						resolveStorageUrl(backendSession.cleanEnhancedPhotoUrl).catch(
+							() => undefined,
+						),
+					]);
 
 				return {
 					id: backendSession.id,
@@ -219,6 +225,7 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
 					overallScore: backendSession.overallScore,
 					photoUrl,
 					originalPhotoUrl,
+					cleanEnhancedPhotoUrl,
 					messages: [], // Messages are loaded separately when session is selected
 					messageCount: backendSession.messageCount,
 				};
@@ -292,6 +299,7 @@ type BackendSessionDetail = {
 	messages: BackendMessageInfo[];
 	analysisResult?: AnalysisResult;
 	originalImageUrl?: string;
+	cleanEnhancedImageUrl?: string;
 };
 
 // Session detail result including photo session data
@@ -300,6 +308,7 @@ export type SessionDetailResult = {
 	photoSession: {
 		originalPreview: string;
 		enhancedPreview: string;
+		cleanEnhancedPreview?: string;
 		analysis: AnalysisResult;
 	} | null;
 };
@@ -346,10 +355,12 @@ export async function getSessionDetail(
 		const data = (await response.json()) as BackendSessionDetail;
 
 		// Resolve session level URLs with error handling
-		const [resolvedPhotoUrl, resolvedOriginalUrl] = await Promise.all([
-			resolveStorageUrl(data.photoUrl).catch(() => undefined),
-			resolveStorageUrl(data.originalImageUrl).catch(() => undefined),
-		]);
+		const [resolvedPhotoUrl, resolvedOriginalUrl, resolvedCleanEnhancedUrl] =
+			await Promise.all([
+				resolveStorageUrl(data.photoUrl).catch(() => undefined),
+				resolveStorageUrl(data.originalImageUrl).catch(() => undefined),
+				resolveStorageUrl(data.cleanEnhancedImageUrl).catch(() => undefined),
+			]);
 
 		// Convert backend messages to ChatMessage[]
 		// Find the first agent message to attach photo and analysis cards
@@ -380,6 +391,7 @@ export async function getSessionDetail(
 					chatMessage.photoCard = {
 						original: resolvedOriginalUrl || resolvedPhotoUrl,
 						enhanced: resolvedPhotoUrl,
+						cleanEnhanced: resolvedCleanEnhancedUrl,
 					};
 					chatMessage.analysisCard = data.analysisResult;
 					hasAttachedCards = true;
@@ -408,6 +420,7 @@ export async function getSessionDetail(
 			photoSession = {
 				originalPreview: resolvedOriginalUrl || resolvedPhotoUrl,
 				enhancedPreview: resolvedPhotoUrl,
+				cleanEnhancedPreview: resolvedCleanEnhancedUrl,
 				analysis: data.analysisResult,
 			};
 		}

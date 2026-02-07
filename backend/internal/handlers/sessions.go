@@ -13,23 +13,25 @@ import (
 
 // SessionInfo represents a session summary for the list API
 type SessionInfo struct {
-	ID               string    `json:"id"`
-	UserID           string    `json:"userId"`
-	Title            string    `json:"title"`
-	CreatedAt        time.Time `json:"createdAt"`
-	UpdatedAt        time.Time `json:"updatedAt"`
-	OverallScore     *float64  `json:"overallScore,omitempty"`
-	PhotoURL         string    `json:"photoUrl,omitempty"`
-	OriginalPhotoURL string    `json:"originalPhotoUrl,omitempty"`
-	MessageCount     int       `json:"messageCount"`
+	ID                    string    `json:"id"`
+	UserID                string    `json:"userId"`
+	Title                 string    `json:"title"`
+	CreatedAt             time.Time `json:"createdAt"`
+	UpdatedAt             time.Time `json:"updatedAt"`
+	OverallScore          *float64  `json:"overallScore,omitempty"`
+	PhotoURL              string    `json:"photoUrl,omitempty"`
+	OriginalPhotoURL      string    `json:"originalPhotoUrl,omitempty"`
+	CleanEnhancedPhotoURL string    `json:"cleanEnhancedPhotoUrl,omitempty"`
+	MessageCount          int       `json:"messageCount"`
 }
 
 // SessionDetail represents a full session with conversation history
 type SessionDetail struct {
 	SessionInfo
-	Messages       []MessageInfo   `json:"messages"`
-	AnalysisResult json.RawMessage `json:"analysisResult,omitempty"`
-	OriginalImage  string          `json:"originalImageUrl,omitempty"`
+	Messages              []MessageInfo   `json:"messages"`
+	AnalysisResult        json.RawMessage `json:"analysisResult,omitempty"`
+	OriginalImage         string          `json:"originalImageUrl,omitempty"`
+	CleanEnhancedImageURL string          `json:"cleanEnhancedImageUrl,omitempty"`
 }
 
 // MessageInfo represents a chat message
@@ -133,6 +135,12 @@ func (h *SessionsHandler) listUserSessions(ctx context.Context, userID string) (
 		if originalPhotoURL, err := state.Get("original_image_url"); err == nil {
 			if s, ok := originalPhotoURL.(string); ok {
 				info.OriginalPhotoURL = s
+			}
+		}
+
+		if cleanURL, err := state.Get("clean_enhanced_image_url"); err == nil {
+			if s, ok := cleanURL.(string); ok {
+				info.CleanEnhancedPhotoURL = s
 			}
 		}
 
@@ -249,6 +257,12 @@ func (h *SessionDetailHandler) getSessionDetail(ctx context.Context, userID, ses
 	if originalURL, err := state.Get("original_image_url"); err == nil {
 		if s, ok := originalURL.(string); ok {
 			detail.OriginalImage = s
+		}
+	}
+
+	if cleanURL, err := state.Get("clean_enhanced_image_url"); err == nil {
+		if s, ok := cleanURL.(string); ok {
+			detail.CleanEnhancedImageURL = s
 		}
 	}
 

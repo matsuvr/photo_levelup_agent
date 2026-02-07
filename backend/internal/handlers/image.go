@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -61,6 +62,22 @@ func (h *ImageHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Length", strconv.FormatInt(size, 10))
 	}
 
+	// Support download mode via ?download=true
+	if r.URL.Query().Get("download") == "true" {
+		prefix := "photo"
+		if strings.HasPrefix(objectName, "uploads/") {
+			prefix = "original"
+		} else if strings.HasPrefix(objectName, "enhanced/") {
+			prefix = "annotated"
+		} else if strings.HasPrefix(objectName, "clean_enhanced/") {
+			prefix = "enhanced"
+		}
+		// Extract filename from object path
+		parts := strings.Split(objectName, "/")
+		filename := parts[len(parts)-1]
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s_%s"`, prefix, filename))
+	}
+
 	if _, err := io.Copy(w, reader); err != nil {
 		log.Printf("ERROR: ImageHandler failed to stream object %s: %v", objectName, err)
 	}
@@ -73,5 +90,7 @@ func isSafeObjectName(objectName string) bool {
 	if strings.Contains(objectName, "..") || strings.Contains(objectName, "\\") {
 		return false
 	}
-	return strings.HasPrefix(objectName, "enhanced/")
+	return strings.HasPrefix(objectName, "enhanced/") ||
+		strings.HasPrefix(objectName, "clean_enhanced/") ||
+		strings.HasPrefix(objectName, "uploads/")
 }
