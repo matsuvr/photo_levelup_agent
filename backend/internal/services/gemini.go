@@ -206,9 +206,6 @@ func (g *GeminiClient) AnalyzeImage(ctx context.Context, imageURL string) (*Anal
 	response, err := g.client.Models.GenerateContent(ctx, modelName(), contents, &genai.GenerateContentConfig{
 		ResponseMIMEType: "application/json",
 		ResponseSchema:   analysisResponseSchema(),
-		Tools: []*genai.Tool{
-			{CodeExecution: &genai.ToolCodeExecution{}},
-		},
 	})
 	if err != nil {
 		log.Printf("ERROR: AnalyzeImage GenerateContent failed: %v", err)
