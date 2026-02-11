@@ -1,0 +1,288 @@
+<mxfile host="app.diagrams.net" modified="2026-02-12T00:00:00.000Z" agent="opencode" etag="processing-flow" version="24.0.0" type="device">
+  <diagram name="Photo Levelup Agent - Processing Flow" id="processing-flow">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1400" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Flow Title -->
+        <mxCell id="title" value="Photo Levelup Agent - Processing Flow" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="500" y="20" width="600" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Start -->
+        <mxCell id="start" value="Start" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="700" y="80" width="120" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- User Uploads Photo -->
+        <mxCell id="upload" value="User Uploads Photo" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="670" y="160" width="180" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Frontend: Generate Session ID -->
+        <mxCell id="generate-session" value="Frontend:&#xa;generateSessionId()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="670" y="240" width="180" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Upload to Cloud Storage -->
+        <mxCell id="upload-storage" value="Upload to&#xa;Cloud Storage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="670" y="320" width="180" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Backend: Analyze Photo -->
+        <mxCell id="analyze" value="Backend:&#xa;analyze.go" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="670" y="400" width="180" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Gemini Direct Call -->
+        <mxCell id="gemini-analyze" value="Gemini:&#xa;AnalyzeImage()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="940" y="400" width="180" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Create ADK Session -->
+        <mxCell id="create-session" value="Create ADK Session&#xa;Save frontend_session_id" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="670" y="480" width="180" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Save Analysis Result -->
+        <mxCell id="save-analysis" value="Save Analysis Result&#xa;to Session State" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="670" y="560" width="180" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- User Request -->
+        <mxCell id="user-request" value="User:&#xa;'分析して' / '変換して'" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="670" y="640" width="180" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Backend: Chat with Agent -->
+        <mxCell id="chat" value="Backend:&#xa;chat.go" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="670" y="720" width="180" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Resolve Session ID -->
+        <mxCell id="resolve-session" value="Resolve Session ID&#xa;Load analysis result" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="670" y="800" width="180" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- ADK Runner -->
+        <mxCell id="adk-runner" value="ADK Runner" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="670" y="880" width="180" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- LLM Tool Selection -->
+        <mxCell id="tool-selection" value="LLM:&#xa;Tool Selection" style="rhombus;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="700" y="960" width="120" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Analyze Photo Tool -->
+        <mxCell id="tool-analyze" value="AnalyzePhoto&#xa;Tool" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="400" y="1080" width="150" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Transform Photo Tool -->
+        <mxCell id="tool-transform" value="TransformPhoto&#xa;Tool" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="670" y="1080" width="150" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Compare And Advise Tool -->
+        <mxCell id="tool-compare" value="CompareAndAdvise&#xa;Tool" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="940" y="1080" width="150" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Gemini Vision -->
+        <mxCell id="gemini-vision" value="Gemini Vision&#xa;Analysis" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="250" y="1160" width="150" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Nano Banana Pro -->
+        <mxCell id="nano-banana" value="Nano Banana Pro&#xa;(gemini-3-pro-image)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="540" y="1160" width="150" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Gemini Compare -->
+        <mxCell id="gemini-compare" value="Gemini:&#xa;Compare &amp; Advice" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="830" y="1160" width="150" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Generate Response -->
+        <mxCell id="generate-response" value="Generate Response" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="670" y="1240" width="180" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Save Conversation History -->
+        <mxCell id="save-history" value="Save Conversation&#xa;to Firestore" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="670" y="1320" width="180" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- End -->
+        <mxCell id="end" value="Display to User" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="700" y="1400" width="120" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Follow-up Questions -->
+        <mxCell id="followup" value="User:&#xa;Follow-up Questions" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="200" y="720" width="180" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Use Same Session -->
+        <mxCell id="same-session" value="Same Session ID&#xa;Context Preserved" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="200" y="800" width="180" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Connections - Main Flow -->
+        <mxCell id="edge1" edge="1" parent="1" source="start" target="upload">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge2" edge="1" parent="1" source="upload" target="generate-session">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge3" edge="1" parent="1" source="generate-session" target="upload-storage">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge4" edge="1" parent="1" source="upload-storage" target="analyze">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge5" edge="1" parent="1" source="analyze" target="gemini-analyze">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge6" edge="1" parent="1" source="analyze" target="create-session">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge7" edge="1" parent="1" source="create-session" target="save-analysis">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge8" edge="1" parent="1" source="save-analysis" target="user-request">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge9" edge="1" parent="1" source="user-request" target="chat">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge10" edge="1" parent="1" source="chat" target="resolve-session">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge11" edge="1" parent="1" source="resolve-session" target="adk-runner">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge12" edge="1" parent="1" source="adk-runner" target="tool-selection">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Connections - Tool Selection -->
+        <mxCell id="edge13" edge="1" parent="1" source="tool-selection" target="tool-analyze">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge14" edge="1" parent="1" source="tool-selection" target="tool-transform">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge15" edge="1" parent="1" source="tool-selection" target="tool-compare">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Connections - Tool Implementation -->
+        <mxCell id="edge16" edge="1" parent="1" source="tool-analyze" target="gemini-vision">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge17" edge="1" parent="1" source="tool-transform" target="nano-banana">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge18" edge="1" parent="1" source="tool-compare" target="gemini-compare">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Connections - Back to Response -->
+        <mxCell id="edge19" edge="1" parent="1" source="gemini-vision" target="generate-response">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="325" y="1240" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge20" edge="1" parent="1" source="nano-banana" target="generate-response">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge21" edge="1" parent="1" source="gemini-compare" target="generate-response">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="905" y="1240" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="edge22" edge="1" parent="1" source="generate-response" target="save-history">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge23" edge="1" parent="1" source="save-history" target="end">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Connections - Follow-up -->
+        <mxCell id="edge24" edge="1" parent="1" source="followup" target="same-session">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge25" edge="1" parent="1" source="same-session" target="resolve-session">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Legend -->
+        <mxCell id="legend-container" value="Legend" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1160" y="80" width="420" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-user" value="User Action" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="legend-container">
+          <mxGeometry x="10" y="40" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-frontend" value="Frontend" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="legend-container">
+          <mxGeometry x="140" y="40" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-backend" value="Backend" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="legend-container">
+          <mxGeometry x="270" y="40" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-gcp" value="Google Cloud" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="legend-container">
+          <mxGeometry x="10" y="80" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-tools" value="Tools" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="legend-container">
+          <mxGeometry x="140" y="80" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-decision" value="Decision" style="rhombus;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="legend-container">
+          <mxGeometry x="270" y="75" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-start" value="Start/End" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="legend-container">
+          <mxGeometry x="10" y="120" width="120" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- State Management Note -->
+        <mxCell id="state-note" value="Session State Management:" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1160" y="300" width="420" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="state-note1" value="• frontend_session_id: Links frontend session to ADK session" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="320" width="400" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="state-note2" value="• original_image_url: Cloud Storage URL of uploaded photo" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="340" width="400" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="state-note3" value="• transformed_image_url: URL of transformed photo" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="360" width="400" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="state-note4" value="• analysis_result: JSON with composition, exposure, color, lighting scores" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="380" width="400" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="state-note5" value="• user:skill_level: User skill level (beginner/intermediate/advanced)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="400" width="400" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="state-note6" value="• Conversation History: ADK session events (JSON persisted)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="420" width="400" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="state-note7" value="State Scope:" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1170" y="450" width="400" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="state-note8" value="  - No prefix: Current session only (image URLs, analysis)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="470" width="400" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="state-note9" value="  - user: prefix: All sessions for same user (skill level)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="490" width="400" height="20" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

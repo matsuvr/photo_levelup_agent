@@ -1,0 +1,238 @@
+<mxfile host="app.diagrams.net" modified="2026-02-12T00:00:00.000Z" agent="opencode" etag="system-architecture" version="24.0.0" type="device">
+  <diagram name="Photo Levelup Agent - System Architecture" id="system-architecture">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Frontend Container -->
+        <mxCell id="frontend-container" value="Frontend (Next.js on Firebase)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="460" height="280" as="geometry" />
+        </mxCell>
+
+        <!-- Frontend Components -->
+        <mxCell id="upload-ui" value="画像アップロード" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="frontend-container">
+          <mxGeometry x="30" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="compare-ui" value="比較ビューア" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="frontend-container">
+          <mxGeometry x="170" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="chat-ui" value="チャットUI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="frontend-container">
+          <mxGeometry x="310" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="session-mgmt" value="Session Management&#xa;(frontend_session_id)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="frontend-container">
+          <mxGeometry x="30" y="140" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="firebase-hosting" value="Firebase Hosting" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="frontend-container">
+          <mxGeometry x="250" y="140" width="180" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="firebase-functions" value="Firebase Functions" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="frontend-container">
+          <mxGeometry x="140" y="220" width="180" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Backend Container -->
+        <mxCell id="backend-container" value="Backend (Go + ADK on Cloud Run)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="540" y="40" width="560" height="520" as="geometry" />
+        </mxCell>
+
+        <!-- Backend Components -->
+        <mxCell id="adk-runner" value="ADK Runner" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1" vertex="1" parent="backend-container">
+          <mxGeometry x="20" y="40" width="520" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="photo-coach-agent" value="Photo Coach Agent (LLM Agent)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1" vertex="1" parent="backend-container">
+          <mxGeometry x="20" y="100" width="520" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Tools -->
+        <mxCell id="tools-container" value="Tools" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="backend-container">
+          <mxGeometry x="20" y="170" width="520" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="analyze-tool" value="AnalyzePhoto Tool&#xa;(analyze.go)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="tools-container">
+          <mxGeometry x="10" y="40" width="150" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="transform-tool" value="TransformPhoto Tool&#xa;(Nano Banana Pro)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="tools-container">
+          <mxGeometry x="180" y="40" width="150" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="compare-tool" value="CompareAndAdvise Tool" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="tools-container">
+          <mxGeometry x="350" y="40" width="150" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Services -->
+        <mxCell id="services-container" value="Services" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="backend-container">
+          <mxGeometry x="20" y="330" width="520" height="170" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gemini-service" value="Gemini Client&#xa;(gemini.go)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="services-container">
+          <mxGeometry x="10" y="40" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="storage-service" value="Cloud Storage Client&#xa;(storage.go)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="services-container">
+          <mxGeometry x="180" y="40" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="session-service" value="Session Service&#xa;(Firestore Session)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="services-container">
+          <mxGeometry x="350" y="40" width="150" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="image-service" value="Image Service&#xa;(image.go)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="services-container">
+          <mxGeometry x="10" y="110" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="job-service" value="Job Service&#xa;(job.go)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="services-container">
+          <mxGeometry x="180" y="110" width="150" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- API Handlers -->
+        <mxCell id="api-handlers" value="API Handlers (analyze.go, chat.go, sessions.go, image.go)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1" vertex="1" parent="backend-container">
+          <mxGeometry x="20" y="510" width="520" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Google Cloud Services Container -->
+        <mxCell id="gcp-container" value="Google Cloud Services" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="40" y="540" width="460" height="280" as="geometry" />
+        </mxCell>
+
+        <!-- GCP Components -->
+        <mxCell id="gemini-ai" value="Google AI Studio&#xa;(Gemini 2.0 Flash / 3 Pro Image)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1" vertex="1" parent="gcp-container">
+          <mxGeometry x="30" y="40" width="180" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="cloud-storage" value="Cloud Storage&#xa;(Photo Uploads / Transformed Images)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="gcp-container">
+          <mxGeometry x="30" y="150" width="180" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="firestore" value="Firestore&#xa;(Session Persistence)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="gcp-container">
+          <mxGeometry x="250" y="40" width="180" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="cloud-run" value="Cloud Run&#xa;(Backend Hosting)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="gcp-container">
+          <mxGeometry x="250" y="150" width="180" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- User -->
+        <mxCell id="user" value="User" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" vertex="1" parent="1">
+          <mxGeometry x="280" y="-20" width="30" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Connections - Frontend to Backend -->
+        <mxCell id="edge1" edge="1" parent="1" source="upload-ui" target="api-handlers">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge2" edge="1" parent="1" source="chat-ui" target="api-handlers">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge3" edge="1" parent="1" source="session-mgmt" target="session-service">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Connections - Backend Internal -->
+        <mxCell id="edge4" edge="1" parent="1" source="api-handlers" target="adk-runner">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge5" edge="1" parent="1" source="adk-runner" target="photo-coach-agent">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge6" edge="1" parent="1" source="photo-coach-agent" target="analyze-tool">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge7" edge="1" parent="1" source="photo-coach-agent" target="transform-tool">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge8" edge="1" parent="1" source="photo-coach-agent" target="compare-tool">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Connections - Tools to Services -->
+        <mxCell id="edge9" edge="1" parent="1" source="analyze-tool" target="gemini-service">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge10" edge="1" parent="1" source="transform-tool" target="storage-service">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge11" edge="1" parent="1" source="session-service" target="firestore">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge12" edge="1" parent="1" source="storage-service" target="cloud-storage">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge13" edge="1" parent="1" source="gemini-service" target="gemini-ai">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Connections - Backend Hosting -->
+        <mxCell id="edge14" edge="1" parent="1" source="backend-container" target="cloud-run">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- User to Frontend -->
+        <mxCell id="edge15" edge="1" parent="1" source="user" target="upload-ui">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge16" edge="1" parent="1" source="user" target="chat-ui">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Legend -->
+        <mxCell id="legend-container" value="Legend" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1140" y="40" width="420" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-ui" value="UI Components" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="legend-container">
+          <mxGeometry x="10" y="40" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-frontend" value="Frontend Services" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="legend-container">
+          <mxGeometry x="140" y="40" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-backend" value="Backend Core" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="legend-container">
+          <mxGeometry x="270" y="40" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-services" value="Services" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="legend-container">
+          <mxGeometry x="10" y="80" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-tools" value="Tools" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="legend-container">
+          <mxGeometry x="140" y="80" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-gcp" value="Google Cloud Services" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="legend-container">
+          <mxGeometry x="270" y="80" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-state" value="Session State" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="legend-container">
+          <mxGeometry x="10" y="120" width="120" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Session Flow Notes -->
+        <mxCell id="session-note1" value="Session Flow:" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1140" y="260" width="420" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="session-note2" value="1. Frontend: Photo upload → generateSessionId()" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1150" y="280" width="400" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="session-note3" value="2. Backend (analyze.go): Gemini direct call → Create ADK session → Save state" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1150" y="300" width="400" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="session-note4" value="3. Backend (chat.go): Resolve session → Load analysis result → Run ADK agent" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1150" y="320" width="400" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="session-note5" value="4. Conversation History: ADK session events JSON persisted" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1150" y="340" width="400" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="session-note6" value="5. State Management:" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1150" y="370" width="400" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="session-note7" value="   - original_image_url" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1150" y="390" width="400" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="session-note8" value="   - transformed_image_url" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1150" y="410" width="400" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="session-note9" value="   - analysis_result (JSON)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1150" y="430" width="400" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Data Flow Arrows -->
+        <mxCell id="data-flow1" value="Upload Image" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;fontSize=10;" edge="1" parent="1" source="cloud-storage" target="analyze-tool">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="540" y="660" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

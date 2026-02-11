@@ -1,6 +1,6 @@
 {
 	"apphosting": {
-		"backendId": "photo-coach-frontend",
+		"backendId": "photo-levelup-frontend-v2",
 		"rootDir": ".",
 		"ignore": [
 			"node_modules",
