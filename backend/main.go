@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -28,10 +30,8 @@ func main() {
 		port = "8080"
 	}
 
-	address := ":" + port
-
 	httpServer := &http.Server{
-		Addr:              address,
+		Addr:              ":" + port,
 		Handler:           server.Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       2 * time.Minute,
@@ -39,7 +39,26 @@ func main() {
 		IdleTimeout:       120 * time.Second,
 	}
 
-	log.Printf("Photo Levelup backend listening on %s", address)
+	go func() {
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+		<-sigCh
+
+		log.Println("Shutting down gracefully...")
+
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
+			log.Printf("Server shutdown error: %v", err)
+		}
+
+		if err := server.Close(); err != nil {
+			log.Printf("Resource cleanup error: %v", err)
+		}
+	}()
+
+	log.Printf("Photo Levelup backend listening on :%s", port)
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("server error: %v", err)
 	}

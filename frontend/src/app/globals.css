@@ -47,9 +47,11 @@ body {
 }
 
 body {
-	background: linear-gradient(145deg,
-			var(--bg-primary) 0%,
-			var(--bg-secondary) 100%);
+	background: linear-gradient(
+		145deg,
+		var(--bg-primary) 0%,
+		var(--bg-secondary) 100%
+	);
 	color: var(--text-primary);
 	overflow: hidden;
 }
@@ -78,7 +80,8 @@ textarea {
 	flex-direction: column;
 	position: relative;
 	z-index: 1;
-	max-width: 100vw;
+	max-width: 480px;
+	margin: 0 auto;
 	overflow-x: hidden;
 }
 
@@ -100,9 +103,11 @@ textarea {
 	/* Slightly larger base size */
 	font-weight: 700;
 	letter-spacing: -0.02em;
-	background: linear-gradient(135deg,
-			var(--text-primary) 0%,
-			var(--accent) 100%);
+	background: linear-gradient(
+		135deg,
+		var(--text-primary) 0%,
+		var(--accent) 100%
+	);
 	-webkit-background-clip: text;
 	-webkit-text-fill-color: transparent;
 	background-clip: text;
@@ -454,9 +459,11 @@ textarea {
 	font-family: "Outfit", sans-serif;
 	font-size: 48px;
 	font-weight: 700;
-	background: linear-gradient(135deg,
-			var(--accent) 0%,
-			var(--accent-hover) 100%);
+	background: linear-gradient(
+		135deg,
+		var(--accent) 0%,
+		var(--accent-hover) 100%
+	);
 	-webkit-background-clip: text;
 	-webkit-text-fill-color: transparent;
 	background-clip: text;
@@ -989,9 +996,11 @@ textarea {
 	font-family: "Outfit", sans-serif;
 	font-size: 56px;
 	font-weight: 700;
-	background: linear-gradient(135deg,
-			var(--accent) 0%,
-			var(--accent-hover) 100%);
+	background: linear-gradient(
+		135deg,
+		var(--accent) 0%,
+		var(--accent-hover) 100%
+	);
 	-webkit-background-clip: text;
 	-webkit-text-fill-color: transparent;
 	background-clip: text;
@@ -1133,255 +1142,6 @@ textarea {
 	color: var(--text-muted);
 }
 
-/* ============================================
-   Desktop Styles (min-width: 768px)
-   ============================================ */
-@media (min-width: 768px) {
-	.header {
-		padding: 16px 24px;
-	}
-
-	.header h1 {
-		font-size: 22px;
-	}
-
-	.header p {
-		display: block;
-		font-size: 13px;
-	}
-
-	.main {
-		flex-direction: row;
-	}
-
-	.mobile-layout {
-		flex: 1;
-		border-right: 1px solid var(--border);
-	}
-
-	.tabs-section {
-		display: none;
-	}
-
-	.sidebar {
-		display: flex;
-		flex-direction: column;
-		width: 380px;
-		height: 100%;
-		overflow-y: auto;
-		padding: 20px;
-		background: var(--bg-glass);
-		backdrop-filter: blur(8px);
-		gap: 16px;
-	}
-
-	.sidebar::-webkit-scrollbar {
-		width: 6px;
-	}
-
-	.sidebar::-webkit-scrollbar-thumb {
-		background: var(--border);
-		border-radius: 3px;
-	}
-
-	.sidebar-section {
-		background: var(--bg-card);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-lg);
-		padding: 16px;
-	}
-
-	.sidebar-section h2 {
-		font-family: "Outfit", sans-serif;
-		font-size: 14px;
-		font-weight: 600;
-		color: var(--text-secondary);
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		margin-bottom: 12px;
-	}
-
-	/* Upload Zone */
-	.dropzone {
-		border: 2px dashed var(--border);
-		background: var(--accent-subtle);
-		border-radius: var(--radius-md);
-		padding: 20px;
-		text-align: center;
-		display: flex;
-		flex-direction: column;
-		gap: 10px;
-		transition:
-			border-color 0.2s ease,
-			background 0.2s ease;
-	}
-
-	.dropzone:hover {
-		border-color: var(--accent);
-	}
-
-	.dropzone p {
-		font-size: 13px;
-		color: var(--text-secondary);
-	}
-
-	.dropzone input {
-		display: none;
-	}
-
-	/* Photo Preview */
-	.photo-grid {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 8px;
-	}
-
-	.photo-grid.three-col {
-		grid-template-columns: 1fr 1fr 1fr;
-	}
-
-	.photo-item {
-		position: relative;
-	}
-
-	.photo-item-actions {
-		display: flex;
-		justify-content: center;
-		margin-top: 4px;
-	}
-
-	.photo-label {
-		position: absolute;
-		top: 8px;
-		left: 8px;
-		background: rgba(0, 0, 0, 0.7);
-		backdrop-filter: blur(4px);
-		color: var(--text-primary);
-		font-size: 10px;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		padding: 4px 8px;
-		border-radius: 4px;
-	}
-
-	.preview {
-		width: 100%;
-		aspect-ratio: 4 / 3;
-		border-radius: var(--radius-sm);
-		border: 1px solid var(--border);
-		overflow: hidden;
-		background: var(--bg-tertiary);
-	}
-
-	.preview img {
-		width: 100%;
-		height: 100%;
-		object-fit: contain;
-		display: block;
-	}
-
-	/* Score Overview */
-	.score-overview {
-		display: flex;
-		align-items: baseline;
-		gap: 8px;
-		margin-bottom: 12px;
-	}
-
-	.score-label {
-		font-size: 12px;
-		color: var(--text-muted);
-	}
-
-	.score-value {
-		font-family: "Outfit", sans-serif;
-		font-size: 32px;
-		font-weight: 700;
-		background: linear-gradient(135deg,
-				var(--accent) 0%,
-				var(--accent-hover) 100%);
-		-webkit-background-clip: text;
-		-webkit-text-fill-color: transparent;
-		background-clip: text;
-	}
-
-	/* Category List */
-	.category-list {
-		display: grid;
-		gap: 12px;
-		margin-top: 12px;
-	}
-
-	.category-row {
-		padding-bottom: 12px;
-		border-bottom: 1px solid var(--border);
-	}
-
-	.category-row:last-child {
-		border-bottom: none;
-		padding-bottom: 0;
-	}
-
-	.category-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		font-weight: 500;
-		font-size: 13px;
-	}
-
-	.category-score {
-		color: var(--accent);
-		font-weight: 600;
-	}
-
-	.category-row p {
-		font-size: 12px;
-		color: var(--text-secondary);
-		margin-top: 4px;
-		line-height: 1.6;
-	}
-
-	.category-improvement {
-		color: var(--text-muted);
-		font-style: italic;
-	}
-
-	/* Embedded cards in desktop */
-	.embedded-photo-card,
-	.embedded-analysis-card {
-		display: none;
-	}
-
-	/* Composer desktop */
-	.composer {
-		padding: 16px 24px;
-	}
-
-	.composer textarea {
-		min-height: 48px;
-	}
-
-	.camera-button {
-		display: none;
-	}
-
-	.chat-messages {
-		padding: 24px;
-		gap: 16px;
-	}
-
-	.message {
-		max-width: 85%;
-		padding: 14px 18px;
-	}
-
-	.radar-chart {
-		max-width: 200px;
-	}
-}
-
 /* === Slide Menu === */
 .slide-menu-overlay {
 	position: fixed;
@@ -1430,9 +1190,11 @@ textarea {
 	font-family: "Outfit", sans-serif;
 	font-size: 18px;
 	font-weight: 600;
-	background: linear-gradient(135deg,
-			var(--text-primary) 0%,
-			var(--accent) 100%);
+	background: linear-gradient(
+		135deg,
+		var(--text-primary) 0%,
+		var(--accent) 100%
+	);
 	-webkit-background-clip: text;
 	-webkit-text-fill-color: transparent;
 	background-clip: text;
@@ -1697,13 +1459,6 @@ textarea {
 	background: rgba(245, 158, 11, 0.05);
 }
 
-/* Desktop adjustments for slide menu */
-@media (min-width: 768px) {
-	.slide-menu {
-		width: 320px;
-	}
-}
-
 /* === Loading Bubble === */
 .loading-bubble {
 	display: flex;
@@ -1738,7 +1493,6 @@ textarea {
 }
 
 @keyframes pulse {
-
 	0%,
 	80%,
 	100% {
@@ -1765,7 +1519,10 @@ textarea {
 	border: 1px solid var(--border);
 	cursor: pointer;
 	text-decoration: none;
-	transition: background 0.2s, color 0.2s, border-color 0.2s;
+	transition:
+		background 0.2s,
+		color 0.2s,
+		border-color 0.2s;
 	font: inherit;
 	font-size: 12px;
 	font-weight: 500;

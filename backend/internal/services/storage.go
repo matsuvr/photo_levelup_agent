@@ -110,3 +110,10 @@ func (s *StorageClient) OpenObject(ctx context.Context, objectName string) (*sto
 	size := reader.Attrs.Size
 	return reader, contentType, size, nil
 }
+
+func (s *StorageClient) Close() error {
+	if s.client != nil {
+		return s.client.Close()
+	}
+	return nil
+}

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getAuthHeaders } from "@/lib/api-client";
 import { secureLog } from "@/lib/secure-log";
 
 export const dynamic = "force-dynamic";
@@ -14,11 +15,13 @@ export async function POST(request: Request) {
 	}
 
 	try {
+		const authHeaders = await getAuthHeaders();
 		const payload = await request.json();
 		const response = await fetch(`${backendBaseUrl}/photo/chat`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
+				...authHeaders,
 			},
 			body: JSON.stringify(payload),
 		});

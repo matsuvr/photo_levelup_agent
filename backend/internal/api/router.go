@@ -3,19 +3,23 @@ package api
 import (
 	"net/http"
 
+	"github.com/matsuvr/photo_levelup_agent/backend/internal/auth"
 	"github.com/matsuvr/photo_levelup_agent/backend/internal/handlers"
+	"github.com/matsuvr/photo_levelup_agent/backend/internal/middleware"
 )
 
-func newRouter(deps *handlers.Dependencies) http.Handler {
+func newRouter(deps *handlers.Dependencies, firebaseAuth *auth.FirebaseAuthClient) http.Handler {
 	mux := http.NewServeMux()
 
-	mux.Handle("POST /photo/analyze", handlers.NewAnalyzeHandler(deps))
+	authMiddleware := middleware.AuthMiddleware(firebaseAuth)
+
+	mux.Handle("POST /photo/analyze", authMiddleware(handlers.NewAnalyzeHandler(deps)))
+	mux.Handle("POST /photo/chat", authMiddleware(handlers.NewChatHandler(deps)))
+	mux.Handle("GET /photo/sessions", authMiddleware(handlers.NewSessionsHandler(deps)))
+	mux.Handle("GET /photo/sessions/", authMiddleware(handlers.NewSessionDetailHandler(deps)))
+
 	mux.Handle("GET /photo/analyze/status", handlers.NewAnalyzeStatusHandler())
 	mux.Handle("GET /photo/image", handlers.NewImageHandler())
-	mux.Handle("POST /photo/chat", handlers.NewChatHandler(deps))
-	mux.Handle("GET /photo/sessions", handlers.NewSessionsHandler(deps))
-	mux.Handle("GET /photo/sessions/", handlers.NewSessionDetailHandler(deps))
-	mux.Handle("POST /test/gemini", handlers.NewTestGeminiHandler())
 
 	return mux
 }

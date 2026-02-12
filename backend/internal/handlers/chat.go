@@ -13,6 +13,8 @@ import (
 	"google.golang.org/adk/runner"
 	"google.golang.org/adk/session"
 	"google.golang.org/genai"
+
+	"github.com/matsuvr/photo_levelup_agent/backend/internal/middleware"
 )
 
 type chatRequest struct {
@@ -52,12 +54,12 @@ func (h *ChatHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if req.SessionID == "" {
 		req.SessionID = "default"
 	}
-	if req.UserID == "" {
-		req.UserID = "anonymous"
-	}
+
+	authResult := middleware.GetAuthResult(r.Context())
+	userID := resolveUserID(authResult, req.UserID)
 
 	ctx := r.Context()
-	reply, err := chatWithAgent(ctx, h.deps, req.UserID, req.SessionID, req.Message, req.ImageURL)
+	reply, err := chatWithAgent(ctx, h.deps, userID, req.SessionID, req.Message, req.ImageURL)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return

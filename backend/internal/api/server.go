@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -9,12 +10,15 @@ import (
 	"google.golang.org/adk/session"
 
 	"github.com/matsuvr/photo_levelup_agent/backend/internal/agent"
+	"github.com/matsuvr/photo_levelup_agent/backend/internal/auth"
 	"github.com/matsuvr/photo_levelup_agent/backend/internal/handlers"
+	"github.com/matsuvr/photo_levelup_agent/backend/internal/services"
 	firestoreSession "github.com/matsuvr/photo_levelup_agent/backend/internal/session"
 )
 
 type Server struct {
-	router http.Handler
+	router        http.Handler
+	storageClient *services.StorageClient
 }
 
 func NewServer(ctx context.Context) (*Server, error) {
@@ -27,28 +31,48 @@ func NewServer(ctx context.Context) (*Server, error) {
 
 	var sessionService session.Service
 
-	// Use Firestore session service if project ID is set
 	if projectID != "" {
-		log.Printf("Initializing Firestore session service for project: %s", projectID)
+		log.Printf("INFO: Initializing Firestore session service for project: %s", projectID)
 		sessionService, err = firestoreSession.NewFirestoreService(ctx, projectID)
 		if err != nil {
-			log.Printf("Warning: Failed to create Firestore session service: %v. Falling back to in-memory.", err)
+			log.Printf("WARN: Failed to create Firestore session service: %v. Falling back to in-memory.", err)
 			sessionService = session.InMemoryService()
 		} else {
-			log.Println("Firestore session service initialized successfully")
+			log.Println("INFO: Firestore session service initialized successfully")
 		}
 	} else {
-		// Fallback to in-memory for development
-		log.Println("GOOGLE_CLOUD_PROJECT not set. Using in-memory session service.")
+		log.Println("INFO: GOOGLE_CLOUD_PROJECT not set. Using in-memory session service.")
 		sessionService = session.InMemoryService()
 	}
 
-	deps := handlers.NewDependencies(photoAgent, sessionService)
-	router := newRouter(deps)
+	firebaseAuth, err := auth.NewFirebaseAuthClient(ctx)
+	if err != nil {
+		log.Printf("WARN: Failed to initialize Firebase Auth: %v", err)
+	}
 
-	return &Server{router: router}, nil
+	storageClient, err := services.NewStorageClient(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create storage client: %w", err)
+	}
+
+	geminiClient := services.NewGeminiClient()
+
+	deps := handlers.NewDependencies(photoAgent, sessionService, storageClient, geminiClient)
+	router := newRouter(deps, firebaseAuth)
+
+	return &Server{
+		router:        router,
+		storageClient: storageClient,
+	}, nil
 }
 
 func (s *Server) Handler() http.Handler {
 	return s.router
+}
+
+func (s *Server) Close() error {
+	if s.storageClient != nil {
+		return s.storageClient.Close()
+	}
+	return nil
 }

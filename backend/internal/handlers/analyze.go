@@ -17,6 +17,7 @@ import (
 	"google.golang.org/adk/session"
 	"google.golang.org/genai"
 
+	"github.com/matsuvr/photo_levelup_agent/backend/internal/middleware"
 	"github.com/matsuvr/photo_levelup_agent/backend/internal/services"
 )
 
@@ -55,10 +56,9 @@ func (h *AnalyzeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		sessionID = "default"
 	}
 
-	userID := r.FormValue("userId")
-	if userID == "" {
-		userID = "anonymous"
-	}
+	authResult := middleware.GetAuthResult(r.Context())
+	fallbackUserID := r.FormValue("userId")
+	userID := resolveUserID(authResult, fallbackUserID)
 
 	// Read file into memory for async processing
 	imageData, err := io.ReadAll(file)
@@ -95,15 +95,8 @@ func (h *AnalyzeHandler) processAnalysis(jobID, userID, sessionID string, imageD
 
 	ctx := context.Background()
 
-	// Storage client
-	storageClient, err := services.NewStorageClient(ctx)
-	if err != nil {
-		log.Printf("ERROR: Job %s - Storage client error: %v", jobID, err)
-		jobStore.SetFailed(jobID, "Storage client error")
-		return
-	}
+	storageClient := h.deps.StorageClient
 
-	// Resize image
 	processor := services.NewImageProcessor()
 	resized, resizedContentType, err := processor.ResizeToMaxEdgeFromBytes(imageData, contentType)
 	if err != nil {
@@ -113,7 +106,6 @@ func (h *AnalyzeHandler) processAnalysis(jobID, userID, sessionID string, imageD
 	}
 	log.Printf("INFO: Job %s - Image resized successfully, size=%d bytes", jobID, len(resized))
 
-	// Upload to GCS
 	imageURL, err := storageClient.UploadImage(ctx, resized, resizedContentType)
 	if err != nil {
 		log.Printf("ERROR: Job %s - Failed to upload image to GCS: %v", jobID, err)

@@ -12,13 +12,16 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 
 	"cloud.google.com/go/storage"
 	"google.golang.org/genai"
 )
 
 type GeminiClient struct {
-	client *genai.Client
+	client    *genai.Client
+	initOnce  sync.Once
+	initError error
 }
 
 type AnalysisResult struct {
@@ -58,25 +61,24 @@ func NewGeminiClient() *GeminiClient {
 }
 
 func (g *GeminiClient) Ensure(ctx context.Context) error {
-	if g.client != nil {
-		return nil
-	}
+	g.initOnce.Do(func() {
+		apiKey := strings.TrimSpace(os.Getenv("GOOGLE_API_KEY"))
+		if apiKey == "" {
+			g.initError = errors.New("GOOGLE_API_KEY is required")
+			return
+		}
 
-	apiKey := strings.TrimSpace(os.Getenv("GOOGLE_API_KEY"))
-	if apiKey == "" {
-		return errors.New("GOOGLE_API_KEY is required")
-	}
-
-	client, err := genai.NewClient(ctx, &genai.ClientConfig{
-		APIKey:  apiKey,
-		Backend: genai.BackendGeminiAPI,
+		client, err := genai.NewClient(ctx, &genai.ClientConfig{
+			APIKey:  apiKey,
+			Backend: genai.BackendGeminiAPI,
+		})
+		if err != nil {
+			g.initError = err
+			return
+		}
+		g.client = client
 	})
-	if err != nil {
-		return err
-	}
-
-	g.client = client
-	return nil
+	return g.initError
 }
 
 // fetchImageBytes fetches image data from GCS URL or HTTP URL and returns the bytes

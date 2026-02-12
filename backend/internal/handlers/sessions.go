@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"google.golang.org/adk/session"
+
+	"github.com/matsuvr/photo_levelup_agent/backend/internal/middleware"
 )
 
 // SessionInfo represents a session summary for the list API
@@ -58,11 +60,9 @@ func (h *SessionsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := r.URL.Query().Get("userId")
-	if userID == "" {
-		writeJSONError(w, http.StatusBadRequest, "userId is required")
-		return
-	}
+	authResult := middleware.GetAuthResult(r.Context())
+	fallbackUserID := r.URL.Query().Get("userId")
+	userID := resolveUserID(authResult, fallbackUserID)
 
 	ctx := r.Context()
 	sessions, err := h.listUserSessions(ctx, userID)
@@ -170,7 +170,6 @@ func (h *SessionDetailHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Extract sessionId from path
 	path := r.URL.Path
 	parts := strings.Split(strings.TrimSuffix(path, "/"), "/")
 	if len(parts) < 3 {
@@ -179,11 +178,9 @@ func (h *SessionDetailHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	}
 	sessionID := parts[len(parts)-1]
 
-	userID := r.URL.Query().Get("userId")
-	if userID == "" {
-		writeJSONError(w, http.StatusBadRequest, "userId is required")
-		return
-	}
+	authResult := middleware.GetAuthResult(r.Context())
+	fallbackUserID := r.URL.Query().Get("userId")
+	userID := resolveUserID(authResult, fallbackUserID)
 
 	ctx := r.Context()
 	detail, err := h.getSessionDetail(ctx, userID, sessionID)

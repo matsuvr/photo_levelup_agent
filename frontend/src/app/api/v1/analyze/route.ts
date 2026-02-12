@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getAuthHeaders } from "@/lib/api-client";
 import { secureLog } from "@/lib/secure-log";
 
 export const dynamic = "force-dynamic";
@@ -26,11 +27,13 @@ export async function POST(request: Request) {
 			);
 		}
 
+		const authHeaders = await getAuthHeaders();
 		const formData = await request.formData();
 		secureLog.info("Analyze: Forwarding request to backend");
 
 		const backendResponse = await fetch(`${backendBaseUrl}/photo/analyze`, {
 			method: "POST",
+			headers: authHeaders,
 			body: formData,
 		});
 
