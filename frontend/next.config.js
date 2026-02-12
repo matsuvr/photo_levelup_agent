@@ -1,13 +1,12 @@
 /** @type {import('next').NextConfig} */
 // =============================================================================
-// WARNING: This project uses Firebase App Hosting (Cloud Run) for SSR.
-// DO NOT change output to 'export' or 'standalone'.
-// DO NOT run 'firebase deploy --only hosting'.
-// App Hosting automatically deploys from apphosting.yaml.
+// WARNING: This project uses Firebase App Hosting (Cloud Run).
+// The Dockerfile expects 'standalone' output to build the container image.
+// DO NOT change output to 'export'.
 // =============================================================================
 const nextConfig = {
 	reactStrictMode: true,
-	// output is intentionally NOT set (defaults to SSR mode for App Hosting)
+	output: "standalone",
 	// NEVER set output: 'export' - this would break the deployment
 };
 
