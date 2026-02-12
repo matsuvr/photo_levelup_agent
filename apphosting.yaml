@@ -1,5 +1,0 @@
-env:
-  - variable: WEB_API_KEY
-    secret: WEB_API_KEY
-  - variable: WEB_APP_ID
-    secret: WEB_APP_ID
