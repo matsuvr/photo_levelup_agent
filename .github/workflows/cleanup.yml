@@ -1,0 +1,32 @@
+name: Cleanup unused resources
+
+on:
+  schedule:
+    # Every day at 18:00 UTC = JST 03:00
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Run cleanup script
+        run: |
+          chmod +x scripts/cleanup_artifact_images.sh
+          ./scripts/cleanup_artifact_images.sh
