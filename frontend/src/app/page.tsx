@@ -31,8 +31,8 @@ import {
 
 // Re-export types for backward compatibility within component
 type PhotoSession = {
-	originalPreview: string;
-	enhancedPreview: string;
+	originalPreview?: string;
+	enhancedPreview?: string;
 	cleanEnhancedPreview?: string;
 	analysis: AnalysisResult;
 };
@@ -628,83 +628,96 @@ export default function Home() {
 				{/* Mobile Layout */}
 				<div className="mobile-layout">
 					{/* Swipeable Tabs Section */}
-					{photoSession &&
-						isValidImageUrl(photoSession.originalPreview) &&
-						isValidImageUrl(photoSession.enhancedPreview) && (
-							<div className="tabs-section">
-								<div className="tabs-header">
-									<button
-										type="button"
-										className={`tab-button ${activeTab === "photo" ? "active" : ""}`}
-										onClick={() => setActiveTab("photo")}
-									>
-										📸 写真
-									</button>
-									<button
-										type="button"
-										className={`tab-button ${activeTab === "analysis" ? "active" : ""}`}
-										onClick={() => setActiveTab("analysis")}
-									>
-										📊 分析
-									</button>
-								</div>
-								<SwipeableTabs activeTab={activeTab} onTabChange={setActiveTab}>
-									<div className="tab-content">
-										{activeTab === "photo" ? (
-											<>
+					{photoSession && (
+						<div className="tabs-section">
+							<div className="tabs-header">
+								<button
+									type="button"
+									className={`tab-button ${activeTab === "photo" ? "active" : ""}`}
+									onClick={() => setActiveTab("photo")}
+								>
+									📸 写真
+								</button>
+								<button
+									type="button"
+									className={`tab-button ${activeTab === "analysis" ? "active" : ""}`}
+									onClick={() => setActiveTab("analysis")}
+								>
+									📊 分析
+								</button>
+							</div>
+							<SwipeableTabs activeTab={activeTab} onTabChange={setActiveTab}>
+								<div className="tab-content">
+									{activeTab === "photo" ? (
+										<>
+											{isValidImageUrl(photoSession.originalPreview) &&
+											isValidImageUrl(photoSession.enhancedPreview) ? (
 												<BeforeAfterSlider
 													beforeSrc={photoSession.originalPreview}
 													afterSrc={photoSession.enhancedPreview}
 												/>
-												<div className="download-row">
+											) : (
+												<div className="image-error-banner">
+													<p>画像の読み込みに失敗しました</p>
+													{!isValidImageUrl(photoSession.originalPreview) && (
+														<p>元画像: URL未取得</p>
+													)}
+													{!isValidImageUrl(photoSession.enhancedPreview) && (
+														<p>添削画像: URL未取得</p>
+													)}
+												</div>
+											)}
+											<div className="download-row">
+												{isValidImageUrl(photoSession.originalPreview) && (
 													<DownloadButton
 														url={photoSession.originalPreview}
 														label="元画像"
 													/>
+												)}
+												{isValidImageUrl(photoSession.enhancedPreview) && (
 													<DownloadButton
 														url={photoSession.enhancedPreview}
 														label="添削入り"
 													/>
-													{isValidImageUrl(
-														photoSession.cleanEnhancedPreview,
-													) && (
-														<DownloadButton
-															url={photoSession.cleanEnhancedPreview}
-															label="お手本"
-														/>
-													)}
-												</div>
-											</>
-										) : (
-											// biome-ignore lint/a11y/useSemanticElements: Content includes interactive elements
-											<div
-												className="analysis-preview-card"
-												role="button"
-												tabIndex={0}
-												onClick={() => setShowAnalysisPopup(true)}
-												onKeyDown={(e) => {
-													if (e.key === "Enter" || e.key === " ") {
-														e.preventDefault();
-														setShowAnalysisPopup(true);
-													}
-												}}
-											>
-												<div className="analysis-score-big">
-													<span className="score-number">
-														{photoSession.analysis.overallScore}
-													</span>
-													<span className="score-max">/ 10</span>
-												</div>
-												<RadarChart items={chartItems} />
-												<button type="button" className="details-button">
-													詳細を見る
-												</button>
+												)}
+												{isValidImageUrl(photoSession.cleanEnhancedPreview) && (
+													<DownloadButton
+														url={photoSession.cleanEnhancedPreview}
+														label="お手本"
+													/>
+												)}
 											</div>
-										)}
-									</div>
-								</SwipeableTabs>
-							</div>
-						)}
+										</>
+									) : (
+										// biome-ignore lint/a11y/useSemanticElements: Content includes interactive elements
+										<div
+											className="analysis-preview-card"
+											role="button"
+											tabIndex={0}
+											onClick={() => setShowAnalysisPopup(true)}
+											onKeyDown={(e) => {
+												if (e.key === "Enter" || e.key === " ") {
+													e.preventDefault();
+													setShowAnalysisPopup(true);
+												}
+											}}
+										>
+											<div className="analysis-score-big">
+												<span className="score-number">
+													{photoSession.analysis.overallScore}
+												</span>
+												<span className="score-max">/ 10</span>
+											</div>
+											<RadarChart items={chartItems} />
+											<button type="button" className="details-button">
+												詳細を見る
+											</button>
+										</div>
+									)}
+								</div>
+							</SwipeableTabs>
+						</div>
+					)}
 
 					{/* Chat Panel */}
 					<div className="chat-panel">
@@ -717,8 +730,8 @@ export default function Home() {
 												{message.content}
 											</ReactMarkdown>
 											{message.photoCard &&
-												isValidImageUrl(message.photoCard.original) &&
-												isValidImageUrl(message.photoCard.enhanced) && (
+												(isValidImageUrl(message.photoCard.original) &&
+												isValidImageUrl(message.photoCard.enhanced) ? (
 													<div className="embedded-photo-card">
 														<BeforeAfterSlider
 															beforeSrc={message.photoCard.original}
@@ -726,7 +739,17 @@ export default function Home() {
 															compact
 														/>
 													</div>
-												)}
+												) : (
+													<div className="image-error-banner compact">
+														<p>画像の読み込みに失敗しました</p>
+														{!isValidImageUrl(message.photoCard.original) && (
+															<p>元画像: URL未取得</p>
+														)}
+														{!isValidImageUrl(message.photoCard.enhanced) && (
+															<p>添削画像: URL未取得</p>
+														)}
+													</div>
+												))}
 											{message.analysisCard && (
 												// biome-ignore lint/a11y/useSemanticElements: Styling consistency
 												<div

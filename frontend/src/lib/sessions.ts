@@ -22,7 +22,7 @@ export type ChatMessage = {
 	content: string;
 	timestamp: Timestamp;
 	analysisCard?: AnalysisResult;
-	photoCard?: { original: string; enhanced: string; cleanEnhanced?: string };
+	photoCard?: { original?: string; enhanced?: string; cleanEnhanced?: string };
 };
 
 export type AnalysisResult = {
@@ -306,8 +306,8 @@ type BackendSessionDetail = {
 export type SessionDetailResult = {
 	session: Session;
 	photoSession: {
-		originalPreview: string;
-		enhancedPreview: string;
+		originalPreview?: string;
+		enhancedPreview?: string;
 		cleanEnhancedPreview?: string;
 		analysis: AnalysisResult;
 	} | null;
@@ -382,14 +382,19 @@ export async function getSessionDetail(
 				};
 
 				// Attach photo and analysis cards to the first agent message after user upload
-				if (
-					!hasAttachedCards &&
-					msg.role === "agent" &&
-					data.analysisResult &&
-					resolvedPhotoUrl
-				) {
+				if (!hasAttachedCards && msg.role === "agent" && data.analysisResult) {
+					if (!resolvedPhotoUrl) {
+						console.error(
+							`Enhanced image URL resolution failed for session ${data.id}: photoUrl=${data.photoUrl}`,
+						);
+					}
+					if (!resolvedOriginalUrl) {
+						console.error(
+							`Original image URL resolution failed for session ${data.id}: originalImageUrl=${data.originalImageUrl}`,
+						);
+					}
 					chatMessage.photoCard = {
-						original: resolvedOriginalUrl || resolvedPhotoUrl,
+						original: resolvedOriginalUrl,
 						enhanced: resolvedPhotoUrl,
 						cleanEnhanced: resolvedCleanEnhancedUrl,
 					};
@@ -416,9 +421,19 @@ export async function getSessionDetail(
 
 		// Build photo session if analysis data exists
 		let photoSession: SessionDetailResult["photoSession"] = null;
-		if (data.analysisResult && resolvedPhotoUrl) {
+		if (data.analysisResult) {
+			if (!resolvedPhotoUrl) {
+				console.error(
+					`Cannot display enhanced image for session ${data.id}: photoUrl=${data.photoUrl} failed to resolve`,
+				);
+			}
+			if (!resolvedOriginalUrl) {
+				console.error(
+					`Cannot display original image for session ${data.id}: originalImageUrl=${data.originalImageUrl} failed to resolve`,
+				);
+			}
 			photoSession = {
-				originalPreview: resolvedOriginalUrl || resolvedPhotoUrl,
+				originalPreview: resolvedOriginalUrl,
 				enhancedPreview: resolvedPhotoUrl,
 				cleanEnhancedPreview: resolvedCleanEnhancedUrl,
 				analysis: data.analysisResult,
@@ -457,14 +472,22 @@ export async function getSessionDetail(
 				),
 			]);
 
-			// Only create photoSession if we have valid resolved URLs
-			if (resolvedOriginal && resolvedEnhanced) {
-				photoSession = {
-					originalPreview: resolvedOriginal,
-					enhancedPreview: resolvedEnhanced,
-					analysis: lastAnalysisMsg.analysisCard,
-				};
+			if (!resolvedOriginal) {
+				console.error(
+					`Original image URL resolution failed (Firestore fallback) for session ${sessionId}: ${lastPhotoMsg.photoCard.original}`,
+				);
 			}
+			if (!resolvedEnhanced) {
+				console.error(
+					`Enhanced image URL resolution failed (Firestore fallback) for session ${sessionId}: ${lastPhotoMsg.photoCard.enhanced}`,
+				);
+			}
+
+			photoSession = {
+				originalPreview: resolvedOriginal,
+				enhancedPreview: resolvedEnhanced,
+				analysis: lastAnalysisMsg.analysisCard,
+			};
 		}
 
 		// Also resolve session-level URLs
