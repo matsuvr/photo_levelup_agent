@@ -25,7 +25,7 @@ PROJECT_ID="ai-hackathon-e04d2"
 BACKEND_REGION="us-central1"
 FRONTEND_REGION="us-central1"
 BACKEND_API_SERVICE="photo-coach-api"
-FRONTEND_BACKEND_ID="photo-coach-frontend"
+FRONTEND_BACKEND_ID="photo-levelup-frontend-v2"
 GITHUB_REPO="matsuvr/photo_levelup_agent"
 
 # Colors for output
