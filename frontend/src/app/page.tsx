@@ -26,6 +26,7 @@ import {
 	getSessionDetail,
 	getUserSessions,
 	type Session,
+	toFrontendImageUrl,
 	updateSessionMetadata,
 } from "@/lib/sessions";
 
@@ -48,8 +49,9 @@ function isValidImageUrl(url: string | undefined): url is string {
 	if (!url) return false;
 	// gs:// URLs cannot be loaded directly by browsers
 	if (url.startsWith("gs://")) return false;
-	// Accept http://, https://, data:, blob: URLs
+	// Accept proxy, http://, https://, data:, blob: URLs
 	return (
+		url.startsWith("/api/image?") ||
 		url.startsWith("https://") ||
 		url.startsWith("http://") ||
 		url.startsWith("data:") ||
@@ -369,8 +371,8 @@ export default function Home() {
 
 			const sessionData: PhotoSession = {
 				originalPreview,
-				enhancedPreview: data.enhancedImageUrl,
-				cleanEnhancedPreview: data.cleanEnhancedImageUrl,
+				enhancedPreview: toFrontendImageUrl(data.enhancedImageUrl),
+				cleanEnhancedPreview: toFrontendImageUrl(data.cleanEnhancedImageUrl),
 				analysis: safeAnalysis,
 			};
 
@@ -384,8 +386,8 @@ export default function Home() {
 				timestamp: Timestamp.now(),
 				photoCard: {
 					original: originalPreview,
-					enhanced: data.enhancedImageUrl,
-					cleanEnhanced: data.cleanEnhancedImageUrl,
+					enhanced: toFrontendImageUrl(data.enhancedImageUrl),
+					cleanEnhanced: toFrontendImageUrl(data.cleanEnhancedImageUrl),
 				},
 				analysisCard: safeAnalysis,
 			};

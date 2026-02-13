@@ -13,7 +13,6 @@ import {
 	updateDoc,
 	where,
 } from "firebase/firestore";
-import { getDownloadURL, getStorage, ref } from "firebase/storage";
 import { db } from "./firebase";
 
 export type ChatMessage = {
@@ -61,6 +60,42 @@ export type Session = {
 };
 
 const SESSIONS_COLLECTION = "sessions";
+
+// Convert backend image URLs to frontend proxy URLs (/api/image?object=...)
+export function toFrontendImageUrl(
+	url: string | undefined,
+): string | undefined {
+	if (!url) return undefined;
+	if (url.startsWith("/api/image?")) return url;
+	if (url.startsWith("blob:") || url.startsWith("data:")) return url;
+
+	// gs://bucket/objectname → /api/image?object=objectname
+	if (url.startsWith("gs://")) {
+		const parts = url.split("/");
+		if (parts.length >= 4) {
+			const objectName = parts.slice(3).join("/");
+			return `/api/image?object=${encodeURIComponent(objectName)}`;
+		}
+		console.error(`Malformed gs:// URL: ${url}`);
+		return undefined;
+	}
+
+	// https://backend/photo/image?object=xxx → /api/image?object=xxx
+	if (url.startsWith("https://") || url.startsWith("http://")) {
+		try {
+			const parsed = new URL(url);
+			const objectParam = parsed.searchParams.get("object");
+			if (objectParam) {
+				return `/api/image?object=${encodeURIComponent(objectParam)}`;
+			}
+		} catch {
+			/* invalid URL */
+		}
+		return url;
+	}
+
+	return undefined;
+}
 
 // Recursively remove undefined values from an object for Firestore compatibility
 function sanitizeForFirestore<T>(obj: T): T {
@@ -122,57 +157,6 @@ export async function getSession(sessionId: string): Promise<Session | null> {
 	return docSnap.data() as Session;
 }
 
-// Helper function to wrap a promise with a timeout
-function withTimeout<T>(
-	promise: Promise<T>,
-	timeoutMs: number,
-	errorMessage = "Operation timed out",
-): Promise<T> {
-	return Promise.race([
-		promise,
-		new Promise<T>((_, reject) =>
-			setTimeout(() => reject(new Error(errorMessage)), timeoutMs),
-		),
-	]);
-}
-
-// Helper to resolve gs:// URLs to HTTPS download URLs
-// Returns undefined if resolution fails (CORS errors, timeout, etc.)
-async function resolveStorageUrl(
-	url: string | undefined,
-	timeoutMs = 5000, // 5 second timeout to prevent long waits
-): Promise<string | undefined> {
-	if (!url) return undefined;
-
-	// If it's already an HTTPS URL, return it directly
-	if (url.startsWith("https://") || url.startsWith("http://")) {
-		return url;
-	}
-
-	// If it's a gs:// URL, try to resolve it
-	if (url.startsWith("gs://")) {
-		try {
-			const storage = getStorage();
-			const storageRef = ref(storage, url);
-			// Add timeout to prevent long waits due to CORS issues or network problems
-			return await withTimeout(
-				getDownloadURL(storageRef),
-				timeoutMs,
-				`Timeout resolving storage URL: ${url}`,
-			);
-		} catch (error) {
-			// Log the error but return undefined so UI can show a fallback
-			console.warn(`Failed to resolve storage URL: ${url}`, error);
-			// Return undefined instead of original gs:// URL
-			// gs:// URLs cannot be loaded by browsers directly
-			return undefined;
-		}
-	}
-
-	// For other URL schemes (data:, blob:, etc.), return as-is
-	return url;
-}
-
 // Backend session info from API
 type BackendSessionInfo = {
 	id: string;
@@ -201,44 +185,23 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
 		const data = (await response.json()) as { sessions: BackendSessionInfo[] };
 
 		// Convert backend sessions to frontend Session type
-		// Use Promise.allSettled to ensure all sessions are processed even if some URL resolutions fail
-		const sessionResults = await Promise.allSettled(
-			(data.sessions || []).map(async (backendSession): Promise<Session> => {
-				// Resolve URLs with individual error handling - don't let one failure block others
-				const [photoUrl, originalPhotoUrl, cleanEnhancedPhotoUrl] =
-					await Promise.all([
-						resolveStorageUrl(backendSession.photoUrl).catch(() => undefined),
-						resolveStorageUrl(backendSession.originalPhotoUrl).catch(
-							() => undefined,
-						),
-						resolveStorageUrl(backendSession.cleanEnhancedPhotoUrl).catch(
-							() => undefined,
-						),
-					]);
-
-				return {
-					id: backendSession.id,
-					userId: backendSession.userId,
-					createdAt: Timestamp.fromDate(new Date(backendSession.createdAt)),
-					updatedAt: Timestamp.fromDate(new Date(backendSession.updatedAt)),
-					title: backendSession.title,
-					overallScore: backendSession.overallScore,
-					photoUrl,
-					originalPhotoUrl,
-					cleanEnhancedPhotoUrl,
-					messages: [], // Messages are loaded separately when session is selected
-					messageCount: backendSession.messageCount,
-				};
+		return (data.sessions || []).map(
+			(backendSession): Session => ({
+				id: backendSession.id,
+				userId: backendSession.userId,
+				createdAt: Timestamp.fromDate(new Date(backendSession.createdAt)),
+				updatedAt: Timestamp.fromDate(new Date(backendSession.updatedAt)),
+				title: backendSession.title,
+				overallScore: backendSession.overallScore,
+				photoUrl: toFrontendImageUrl(backendSession.photoUrl),
+				originalPhotoUrl: toFrontendImageUrl(backendSession.originalPhotoUrl),
+				cleanEnhancedPhotoUrl: toFrontendImageUrl(
+					backendSession.cleanEnhancedPhotoUrl,
+				),
+				messages: [], // Messages are loaded separately when session is selected
+				messageCount: backendSession.messageCount,
 			}),
 		);
-
-		// Extract successful results, filter out failures
-		return sessionResults
-			.filter(
-				(result): result is PromiseFulfilledResult<Session> =>
-					result.status === "fulfilled",
-			)
-			.map((result) => result.value);
 	} catch (error) {
 		console.warn(
 			"Failed to fetch sessions from API, falling back to Firestore",
@@ -252,31 +215,17 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
 		);
 
 		const querySnapshot = await getDocs(q);
-		const rawSessions = querySnapshot.docs.map(
-			(docData) => docData.data() as Session,
-		);
-
-		// Resolve URLs for Firestore sessions too (they might have gs:// URLs)
-		const resolvedSessions = await Promise.allSettled(
-			rawSessions.map(async (session): Promise<Session> => {
-				const [photoUrl, originalPhotoUrl] = await Promise.all([
-					resolveStorageUrl(session.photoUrl).catch(() => undefined),
-					resolveStorageUrl(session.originalPhotoUrl).catch(() => undefined),
-				]);
-				return {
-					...session,
-					photoUrl,
-					originalPhotoUrl,
-				};
-			}),
-		);
-
-		return resolvedSessions
-			.filter(
-				(result): result is PromiseFulfilledResult<Session> =>
-					result.status === "fulfilled",
-			)
-			.map((result) => result.value);
+		return querySnapshot.docs.map((docData) => {
+			const session = docData.data() as Session;
+			return {
+				...session,
+				photoUrl: toFrontendImageUrl(session.photoUrl),
+				originalPhotoUrl: toFrontendImageUrl(session.originalPhotoUrl),
+				cleanEnhancedPhotoUrl: toFrontendImageUrl(
+					session.cleanEnhancedPhotoUrl,
+				),
+			};
+		});
 	}
 }
 
@@ -354,57 +303,53 @@ export async function getSessionDetail(
 
 		const data = (await response.json()) as BackendSessionDetail;
 
-		// Resolve session level URLs with error handling
-		const [resolvedPhotoUrl, resolvedOriginalUrl, resolvedCleanEnhancedUrl] =
-			await Promise.all([
-				resolveStorageUrl(data.photoUrl).catch(() => undefined),
-				resolveStorageUrl(data.originalImageUrl).catch(() => undefined),
-				resolveStorageUrl(data.cleanEnhancedImageUrl).catch(() => undefined),
-			]);
+		// Convert URLs to frontend proxy paths
+		const resolvedPhotoUrl = toFrontendImageUrl(data.photoUrl);
+		const resolvedOriginalUrl = toFrontendImageUrl(data.originalImageUrl);
+		const resolvedCleanEnhancedUrl = toFrontendImageUrl(
+			data.cleanEnhancedImageUrl,
+		);
 
 		// Convert backend messages to ChatMessage[]
 		// Find the first agent message to attach photo and analysis cards
 		let hasAttachedCards = false;
 
-		// We need to process messages asynchronously to resolve URLs in cards
-		const messages = await Promise.all(
-			data.messages.map(async (msg, index) => {
-				// Extract original user message from enriched content (if applicable)
-				const displayContent =
-					msg.role === "user"
-						? extractOriginalUserMessage(msg.content)
-						: msg.content;
-				const chatMessage: ChatMessage = {
-					id: `${data.id}-msg-${index}`,
-					role: msg.role,
-					content: displayContent,
-					timestamp: Timestamp.fromDate(new Date(msg.timestamp)),
-				};
+		const messages = data.messages.map((msg, index) => {
+			// Extract original user message from enriched content (if applicable)
+			const displayContent =
+				msg.role === "user"
+					? extractOriginalUserMessage(msg.content)
+					: msg.content;
+			const chatMessage: ChatMessage = {
+				id: `${data.id}-msg-${index}`,
+				role: msg.role,
+				content: displayContent,
+				timestamp: Timestamp.fromDate(new Date(msg.timestamp)),
+			};
 
-				// Attach photo and analysis cards to the first agent message after user upload
-				if (!hasAttachedCards && msg.role === "agent" && data.analysisResult) {
-					if (!resolvedPhotoUrl) {
-						console.error(
-							`Enhanced image URL resolution failed for session ${data.id}: photoUrl=${data.photoUrl}`,
-						);
-					}
-					if (!resolvedOriginalUrl) {
-						console.error(
-							`Original image URL resolution failed for session ${data.id}: originalImageUrl=${data.originalImageUrl}`,
-						);
-					}
-					chatMessage.photoCard = {
-						original: resolvedOriginalUrl,
-						enhanced: resolvedPhotoUrl,
-						cleanEnhanced: resolvedCleanEnhancedUrl,
-					};
-					chatMessage.analysisCard = data.analysisResult;
-					hasAttachedCards = true;
+			// Attach photo and analysis cards to the first agent message after user upload
+			if (!hasAttachedCards && msg.role === "agent" && data.analysisResult) {
+				if (!resolvedPhotoUrl) {
+					console.error(
+						`Enhanced image URL resolution failed for session ${data.id}: photoUrl=${data.photoUrl}`,
+					);
 				}
+				if (!resolvedOriginalUrl) {
+					console.error(
+						`Original image URL resolution failed for session ${data.id}: originalImageUrl=${data.originalImageUrl}`,
+					);
+				}
+				chatMessage.photoCard = {
+					original: resolvedOriginalUrl,
+					enhanced: resolvedPhotoUrl,
+					cleanEnhanced: resolvedCleanEnhancedUrl,
+				};
+				chatMessage.analysisCard = data.analysisResult;
+				hasAttachedCards = true;
+			}
 
-				return chatMessage;
-			}),
-		);
+			return chatMessage;
+		});
 
 		// Build session object
 		const session: Session = {
@@ -462,41 +407,21 @@ export async function getSessionDetail(
 			.find((m) => m.photoCard);
 
 		if (lastAnalysisMsg?.analysisCard && lastPhotoMsg?.photoCard) {
-			// Resolve URLs from photoCard (they might be gs:// URLs)
-			const [resolvedOriginal, resolvedEnhanced] = await Promise.all([
-				resolveStorageUrl(lastPhotoMsg.photoCard.original).catch(
-					() => undefined,
-				),
-				resolveStorageUrl(lastPhotoMsg.photoCard.enhanced).catch(
-					() => undefined,
-				),
-			]);
-
-			if (!resolvedOriginal) {
-				console.error(
-					`Original image URL resolution failed (Firestore fallback) for session ${sessionId}: ${lastPhotoMsg.photoCard.original}`,
-				);
-			}
-			if (!resolvedEnhanced) {
-				console.error(
-					`Enhanced image URL resolution failed (Firestore fallback) for session ${sessionId}: ${lastPhotoMsg.photoCard.enhanced}`,
-				);
-			}
-
 			photoSession = {
-				originalPreview: resolvedOriginal,
-				enhancedPreview: resolvedEnhanced,
+				originalPreview: toFrontendImageUrl(lastPhotoMsg.photoCard.original),
+				enhancedPreview: toFrontendImageUrl(lastPhotoMsg.photoCard.enhanced),
+				cleanEnhancedPreview: toFrontendImageUrl(
+					lastPhotoMsg.photoCard.cleanEnhanced,
+				),
 				analysis: lastAnalysisMsg.analysisCard,
 			};
 		}
 
-		// Also resolve session-level URLs
-		const [resolvedPhotoUrl, resolvedOriginalPhotoUrl] = await Promise.all([
-			resolveStorageUrl(firestoreSession.photoUrl).catch(() => undefined),
-			resolveStorageUrl(firestoreSession.originalPhotoUrl).catch(
-				() => undefined,
-			),
-		]);
+		// Convert session-level URLs
+		const resolvedPhotoUrl = toFrontendImageUrl(firestoreSession.photoUrl);
+		const resolvedOriginalPhotoUrl = toFrontendImageUrl(
+			firestoreSession.originalPhotoUrl,
+		);
 
 		return {
 			session: {
